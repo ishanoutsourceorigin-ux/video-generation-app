@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "288062969366",
+    "project_id": "video-generator-app-dc8ee",
+    "storage_bucket": "video-generator-app-dc8ee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:288062969366:android:4f569b0b48bbaed5820737",
+        "android_client_info": {
+          "package_name": "com.clonex.video_gen_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "288062969366-p6ho0f35u91elebbcrjnjvc7cnfa50us.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.clonex.video_gen_app",
+            "certificate_hash": "10df0ba6b8c7a548041ff95ac2222c45587d9c99"
+          }
+        },
+        {
+          "client_id": "288062969366-bj82d1psaj8pl12d8ormngi4mhotqe92.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCbO9rbgPV8jQ2MV1_NUiq3mP-fLVZ95M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "288062969366-bj82d1psaj8pl12d8ormngi4mhotqe92.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "288062969366-h90i7gft7h1nl2iea9n3or0dv2stbpvh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.videoGenApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
