@@ -47,6 +47,7 @@ class _RoundButtonState extends State<RoundButton> {
         : Container(
             width: double.infinity,
             decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey),
               borderRadius: BorderRadius.circular(widget.borderRadius),
               color: widget.bgColor ?? AppColors.purpleColor,
             ),
