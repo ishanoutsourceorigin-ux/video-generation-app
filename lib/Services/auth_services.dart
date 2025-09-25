@@ -4,10 +4,11 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:video_gen_app/Screens/dashboard_screen.dart';
+import 'package:video_gen_app/Screens/Home/home_screen.dart';
 // import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
 import 'package:video_gen_app/Utils/utils.dart';
+import 'package:video_gen_app/Utils/animated_page_route.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -122,7 +123,7 @@ class AuthService {
 
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        AnimatedPageRoute(page: const HomeScreen()),
         (route) => false, // This removes all previous routes
       );
       return res;
@@ -204,7 +205,7 @@ class AuthService {
 
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          AnimatedPageRoute(page: const HomeScreen()),
           (route) => false, // This removes all previous routes
         );
       }
@@ -261,7 +262,7 @@ class AuthService {
 
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          AnimatedPageRoute(page: const HomeScreen()),
           (route) => false, // This removes all previous routes
         );
       }

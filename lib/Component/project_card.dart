@@ -5,6 +5,7 @@ class ProjectCard extends StatelessWidget {
   final String createdDate;
   final String duration;
   final String imagePath;
+  final String? status;
   final VoidCallback onPlay;
   final VoidCallback onDownload;
   final VoidCallback onDelete;
@@ -15,6 +16,7 @@ class ProjectCard extends StatelessWidget {
     required this.createdDate,
     required this.duration,
     required this.imagePath,
+    this.status,
     required this.onPlay,
     required this.onDownload,
     required this.onDelete,
@@ -26,6 +28,7 @@ class ProjectCard extends StatelessWidget {
     required double iconSize,
     required double padding,
     String? label,
+    IconData? fallbackIcon,
   }) {
     return Tooltip(
       message: label ?? '',
@@ -39,22 +42,54 @@ class ProjectCard extends StatelessWidget {
             width: iconSize,
             height: iconSize,
             fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return Icon(
+                fallbackIcon ?? Icons.circle,
+                size: iconSize,
+                color: Colors.grey.shade400,
+              );
+            },
           ),
         ),
       ),
     );
   }
 
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return Colors.green;
+      case 'processing':
+        return Colors.blue;
+      case 'failed':
+        return Colors.red;
+      case 'queued':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'Ready';
+      case 'processing':
+        return 'Processing';
+      case 'failed':
+        return 'Failed';
+      case 'queued':
+        return 'Queued';
+      default:
+        return status;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width > 600;
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
 
     // Enhanced responsive sizing
-    final cardWidth = isTablet
-        ? (isLandscape ? 280.0 : 240.0)
-        : (isLandscape ? 220.0 : 180.0);
     final contentPadding = isTablet ? 16.0 : 12.0;
     final titleFontSize = isTablet ? 16.0 : 14.0;
     final dateFontSize = isTablet ? 12.0 : 10.0;
@@ -63,8 +98,6 @@ class ProjectCard extends StatelessWidget {
     final thumbnailHeight = isTablet ? 140.0 : 110.0;
 
     return Container(
-      margin: EdgeInsets.only(right: isTablet ? 16 : 12),
-      width: cardWidth,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
@@ -137,31 +170,63 @@ class ProjectCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Duration badge
+                  // Duration badge and status
                   Positioned(
                     top: 12,
                     right: 12,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isTablet ? 10 : 8,
-                        vertical: isTablet ? 6 : 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 1,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Status badge
+                        if (status != null) ...[
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isTablet ? 8 : 6,
+                              vertical: isTablet ? 4 : 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(status!).withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              _getStatusText(status!),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: dateFontSize - 1,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                        // Duration badge
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isTablet ? 10 : 8,
+                            vertical: isTablet ? 6 : 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            duration,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: dateFontSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        duration,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: dateFontSize,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      ],
                     ),
                   ),
                   // Play overlay
@@ -208,65 +273,70 @@ class ProjectCard extends StatelessWidget {
             ),
           ),
           // Content
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.all(contentPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: titleFontSize,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          Padding(
+            padding: EdgeInsets.all(contentPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: titleFontSize,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
                   ),
-                  SizedBox(height: isTablet ? 8 : 6),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        color: Colors.grey.shade500,
-                        size: dateFontSize + 2,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: isTablet ? 8 : 6),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      color: Colors.grey.shade500,
+                      size: dateFontSize + 2,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
                         "Created $createdDate",
                         style: TextStyle(
                           color: Colors.grey.shade400,
                           fontSize: dateFontSize,
                           fontWeight: FontWeight.w500,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildImageActionButton(
-                        imageAsset: "images/download-icon.png",
-                        onTap: onDownload,
-                        iconSize: iconSize + 4,
-                        padding: buttonPadding,
-                        label: "Download",
-                      ),
-                      const Spacer(),
-                      _buildImageActionButton(
-                        imageAsset: "images/delete-icon.png",
-                        onTap: onDelete,
-                        iconSize: iconSize + 4,
-                        padding: buttonPadding,
-                        label: "Delete",
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isTablet ? 16 : 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildImageActionButton(
+                      imageAsset: "images/download-icon.png",
+                      onTap: onDownload,
+                      iconSize: iconSize + 4,
+                      padding: buttonPadding,
+                      label: "Download",
+                      fallbackIcon: Icons.download,
+                    ),
+                    const SizedBox(width: 20),
+                    _buildImageActionButton(
+                      imageAsset: "images/delete-icon.png",
+                      onTap: onDelete,
+                      iconSize: iconSize + 4,
+                      padding: buttonPadding,
+                      label: "Delete",
+                      fallbackIcon: Icons.delete,
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],

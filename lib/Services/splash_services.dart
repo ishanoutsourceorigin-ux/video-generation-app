@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_gen_app/Screens/Auth/login_screen.dart';
 import 'package:video_gen_app/Screens/Splash/create_ai_avatar_screen.dart';
-import 'package:video_gen_app/Screens/dashboard_screen.dart';
+import 'package:video_gen_app/Screens/Home/home_screen.dart';
+import 'package:video_gen_app/Utils/animated_page_route.dart';
 
 class SplashServices {
   void checkAppStartState(BuildContext context) async {
@@ -19,7 +20,7 @@ class SplashServices {
       await prefs.setBool('isFirstLaunch', false); // mark as not first
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const CreateAiAvatarScreen()),
+        AnimatedPageRoute(page: const CreateAiAvatarScreen()),
         (route) => false, // This removes all previous routes
       );
     }
@@ -27,7 +28,7 @@ class SplashServices {
     else if (user == null) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        AnimatedPageRoute(page: const LoginScreen()),
         // MaterialPageRoute(builder: (context) => const CreateAiAvatarScreen()),
         (route) => false, // This removes all previous routes
       );
@@ -36,7 +37,7 @@ class SplashServices {
     else {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        AnimatedPageRoute(page: const HomeScreen()),
         (route) => false, // This removes all previous routes
       );
     }
