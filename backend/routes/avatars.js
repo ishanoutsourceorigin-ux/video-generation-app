@@ -247,16 +247,13 @@ router.get('/', async (req, res) => {
     const userId = req.user.uid;
     const { status, limit = 20, page = 1 } = req.query;
 
-    // In development mode (when userId starts with 'dev-user-'), return all avatars
-    // This is because each request gets a new dev user ID
-    const isDevMode = userId.startsWith('dev-user-');
-    
-    const query = isDevMode ? {} : { userId };
+    // Always filter by authenticated user ID
+    const query = { userId };
     if (status) {
       query.status = status;
     }
     
-    console.log(`🔍 Fetching avatars - Dev mode: ${isDevMode}, User ID: ${userId}, Query:`, query);
+    console.log(`🔍 Fetching avatars - User ID: ${userId}, Query:`, query);
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 

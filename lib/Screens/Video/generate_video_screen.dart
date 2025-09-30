@@ -30,6 +30,10 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
     final avatarName = widget.avatar['name'] ?? 'Unknown';
     final avatarImageUrl = widget.avatar['imageUrl'] ?? '';
 
+    // Debug: Print avatar data structure
+    print("🔍 Avatar data received: ${widget.avatar}");
+    print("📝 Avatar keys: ${widget.avatar.keys.toList()}");
+
     return Scaffold(
       backgroundColor: AppColors.appBgColor,
       appBar: AppBar(
@@ -284,6 +288,18 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
       return;
     }
 
+    // Get avatar ID - check multiple possible field names
+    final avatarId =
+        widget.avatar['id'] ??
+        widget.avatar['_id'] ??
+        widget.avatar['avatarId'];
+
+    if (avatarId == null) {
+      print("❌ Available avatar fields: ${widget.avatar.keys.toList()}");
+      _showError("Avatar ID not found. Please try selecting the avatar again.");
+      return;
+    }
+
     setState(() {
       _isGenerating = true;
     });
@@ -292,10 +308,10 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
       print("🎬 Starting video generation...");
       print("📹 Title: ${_titleController.text.trim()}");
       print("📝 Script: ${_scriptController.text.trim()}");
-      print("👤 Avatar ID: ${widget.avatar['id']}");
+      print("👤 Avatar ID: $avatarId");
 
       final result = await ApiService.createVideo(
-        avatarId: widget.avatar['id'],
+        avatarId: avatarId,
         title: _titleController.text.trim(),
         script: _scriptController.text.trim(),
       );

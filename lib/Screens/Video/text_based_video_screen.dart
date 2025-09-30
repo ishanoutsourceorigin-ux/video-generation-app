@@ -3,7 +3,7 @@ import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Component/round_button.dart';
 import 'package:video_gen_app/Component/round_textfield.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
-import 'package:video_gen_app/Screens/Video/my_videos_screen.dart';
+import 'package:video_gen_app/Screens/Video/completed_videos_screen.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
 
 class TextBasedVideoScreen extends StatefulWidget {
@@ -17,30 +17,26 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
-  String _selectedAspectRatio = '9:16';
-  String _selectedResolution = '1080';
+  String _selectedAspectRatio = '720:1280';
+  // String _selectedResolution = '1080';
   String _selectedDuration = '8';
-  bool _withAudio = true;
-  bool _withSubtitles = true;
+  // bool _withAudio = true;
+  // bool _withSubtitles = true;
   bool _isGenerating = false;
 
   final List<Map<String, String>> _aspectRatios = [
-    {'label': 'Square (1:1)', 'value': '1:1'},
-    {'label': 'Vertical (9:16)', 'value': '9:16'},
-    {'label': 'Vertical (16:19)', 'value': '16:19'},
-    {'label': 'Portrait (3:4)', 'value': '3:4'},
+    {'label': 'Landscape (16:9)', 'value': '1280:720'},
+    {'label': 'Vertical (9:16)', 'value': '720:1280'},
   ];
 
-  final List<Map<String, String>> _resolutions = [
-    {'label': '720p', 'value': '720'},
-    {'label': '1080p', 'value': '1080'},
-  ];
+  // final List<Map<String, String>> _resolutions = [
+  //   {'label': '720p', 'value': '720'},
+  //   {'label': '1080p', 'value': '1080'},
+  // ];
 
   final List<Map<String, String>> _durations = [
-    {'label': '4 seconds', 'value': '4'},
-    {'label': '8 seconds', 'value': '8'},
+    {'label': '8 seconds', 'value': '8'}, // VEO-3 only supports 8s
   ];
-
   @override
   void dispose() {
     _titleController.dispose();
@@ -213,56 +209,56 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Resolution Selection
-              const Text(
-                "Resolution",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.darkGreyColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedResolution,
-                    isExpanded: true,
-                    dropdownColor: AppColors.darkGreyColor,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    icon: Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Colors.grey.shade400,
-                    ),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          _selectedResolution = newValue;
-                        });
-                      }
-                    },
-                    items: _resolutions.map<DropdownMenuItem<String>>((
-                      resolution,
-                    ) {
-                      return DropdownMenuItem<String>(
-                        value: resolution['value'],
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(resolution['label']!),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+              // // Resolution Selection
+              // const Text(
+              //   "Resolution",
+              //   style: TextStyle(
+              //     color: Colors.white,
+              //     fontSize: 16,
+              //     fontWeight: FontWeight.bold,
+              //   ),
+              // ),
+              // const SizedBox(height: 8),
+              // Container(
+              //   decoration: BoxDecoration(
+              //     color: AppColors.darkGreyColor,
+              //     borderRadius: BorderRadius.circular(12),
+              //     border: Border.all(
+              //       color: AppColors.greyColor.withOpacity(0.3),
+              //     ),
+              //   ),
+              //   child: DropdownButtonHideUnderline(
+              //     child: DropdownButton<String>(
+              //       value: _selectedResolution,
+              //       isExpanded: true,
+              //       dropdownColor: AppColors.darkGreyColor,
+              //       style: const TextStyle(color: Colors.white, fontSize: 16),
+              //       icon: Icon(
+              //         Icons.keyboard_arrow_down,
+              //         color: Colors.grey.shade400,
+              //       ),
+              //       onChanged: (String? newValue) {
+              //         if (newValue != null) {
+              //           setState(() {
+              //             _selectedResolution = newValue;
+              //           });
+              //         }
+              //       },
+              //       items: _resolutions.map<DropdownMenuItem<String>>((
+              //         resolution,
+              //       ) {
+              //         return DropdownMenuItem<String>(
+              //           value: resolution['value'],
+              //           child: Padding(
+              //             padding: const EdgeInsets.symmetric(horizontal: 16),
+              //             child: Text(resolution['label']!),
+              //           ),
+              //         );
+              //       }).toList(),
+              //     ),
+              //   ),
+              // ),
+              // const SizedBox(height: 16),
 
               // Duration Selection
               const Text(
@@ -313,102 +309,102 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Audio & Features Section
-              const Text(
-                "Audio & Features",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
+              // // Audio & Features Section
+              // const Text(
+              //   "Audio & Features",
+              //   style: TextStyle(
+              //     color: Colors.white,
+              //     fontSize: 18,
+              //     fontWeight: FontWeight.bold,
+              //   ),
+              // ),
+              // const SizedBox(height: 16),
 
-              // Audio Toggle
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.darkGreyColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.volume_up,
-                      color: _withAudio ? AppColors.purpleColor : Colors.grey,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        "Include Audio",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    Switch(
-                      value: _withAudio,
-                      onChanged: (value) {
-                        setState(() {
-                          _withAudio = value;
-                        });
-                      },
-                      activeColor: AppColors.purpleColor,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
+              // // Audio Toggle
+              // Container(
+              //   padding: const EdgeInsets.all(16),
+              //   decoration: BoxDecoration(
+              //     color: AppColors.darkGreyColor,
+              //     borderRadius: BorderRadius.circular(12),
+              //     border: Border.all(
+              //       color: AppColors.greyColor.withOpacity(0.3),
+              //     ),
+              //   ),
+              //   child: Row(
+              //     children: [
+              //       Icon(
+              //         Icons.volume_up,
+              //         color: _withAudio ? AppColors.purpleColor : Colors.grey,
+              //         size: 20,
+              //       ),
+              //       const SizedBox(width: 12),
+              //       const Expanded(
+              //         child: Text(
+              //           "Include Audio",
+              //           style: TextStyle(
+              //             color: Colors.white,
+              //             fontSize: 16,
+              //             fontWeight: FontWeight.w500,
+              //           ),
+              //         ),
+              //       ),
+              //       Switch(
+              //         value: _withAudio,
+              //         onChanged: (value) {
+              //           setState(() {
+              //             _withAudio = value;
+              //           });
+              //         },
+              //         activeColor: AppColors.purpleColor,
+              //       ),
+              //     ],
+              //   ),
+              // ),
+              // const SizedBox(height: 12),
 
-              // Subtitles Toggle
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.darkGreyColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.subtitles,
-                      color: _withSubtitles
-                          ? AppColors.purpleColor
-                          : Colors.grey,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        "Include Subtitles",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    Switch(
-                      value: _withSubtitles,
-                      onChanged: (value) {
-                        setState(() {
-                          _withSubtitles = value;
-                        });
-                      },
-                      activeColor: AppColors.purpleColor,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
+              // // Subtitles Toggle
+              // Container(
+              //   padding: const EdgeInsets.all(16),
+              //   decoration: BoxDecoration(
+              //     color: AppColors.darkGreyColor,
+              //     borderRadius: BorderRadius.circular(12),
+              //     border: Border.all(
+              //       color: AppColors.greyColor.withOpacity(0.3),
+              //     ),
+              //   ),
+              //   child: Row(
+              //     children: [
+              //       Icon(
+              //         Icons.subtitles,
+              //         color: _withSubtitles
+              //             ? AppColors.purpleColor
+              //             : Colors.grey,
+              //         size: 20,
+              //       ),
+              //       const SizedBox(width: 12),
+              //       const Expanded(
+              //         child: Text(
+              //           "Include Subtitles",
+              //           style: TextStyle(
+              //             color: Colors.white,
+              //             fontSize: 16,
+              //             fontWeight: FontWeight.w500,
+              //           ),
+              //         ),
+              //       ),
+              //       Switch(
+              //         value: _withSubtitles,
+              //         onChanged: (value) {
+              //           setState(() {
+              //             _withSubtitles = value;
+              //           });
+              //         },
+              //         activeColor: AppColors.purpleColor,
+              //       ),
+              //     ],
+              //   ),
+              // ),
+              // const SizedBox(height: 40),
 
               // Generate Button
               RoundButton(
@@ -431,7 +427,7 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
                 onPress: () {
                   Navigator.push(
                     context,
-                    AnimatedPageRoute(page: const MyVideosScreen()),
+                    AnimatedPageRoute(page: const CompletedVideosScreen()),
                   );
                 },
                 leadingIcon: Icons.video_library,
@@ -515,30 +511,27 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
     });
 
     try {
-      print("🎬 Starting text-based video generation...");
-      print("📹 Title: ${_titleController.text.trim()}");
-      print("📝 Description: ${_descriptionController.text.trim()}");
+      print("🎬 === STARTING TEXT-BASED VIDEO GENERATION ===");
+      print("📋 Form validation passed");
+      print("📹 Title: '${_titleController.text.trim()}'");
+      print("📝 Description: '${_descriptionController.text.trim()}'");
       print("⏱️ Duration: $duration seconds");
       print("📏 Aspect Ratio: $_selectedAspectRatio");
-      print("📱 Resolution: ${_selectedResolution}p");
-      print("🔊 With Audio: $_withAudio");
-      print("📝 With Subtitles: $_withSubtitles");
+      // print("📱 Resolution: ${_selectedResolution}p");
+      print("� Calling API service...");
 
-      // Call backend API for text-based video generation
-      final result = await ApiService.createTextBasedVideo(
+      // Call backend API for project-based text-based video generation
+      final result = await ApiService.createTextBasedProject(
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        style: 'default',
-        voice: 'default',
-        duration: duration,
         aspectRatio: _selectedAspectRatio,
-        resolution: int.parse(_selectedResolution),
-        withAudio: _withAudio,
-        withSubtitles: _withSubtitles,
-        withLipSync: false,
+        resolution: '720', // Fixed for VEO-3
+        duration: '8', // Fixed for VEO-3
       );
 
-      print("✅ Text-based video generation started: $result");
+      print("✅ API call successful!");
+      print("📋 Result: $result");
+      print("🎉 Text-based video generation started successfully!");
 
       // Success
       ScaffoldMessenger.of(context).showSnackBar(
@@ -551,18 +544,22 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
         ),
       );
 
+      print("🏠 Navigating to videos screen...");
       // Navigate to videos screen
       Navigator.pushReplacement(
         context,
-        AnimatedPageRoute(page: const MyVideosScreen()),
+        AnimatedPageRoute(page: const CompletedVideosScreen()),
       );
     } catch (e) {
       print("❌ Error generating text-based video: $e");
+      print("❌ Error type: ${e.runtimeType}");
+      print("❌ Full error details: ${e.toString()}");
       _showError(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       setState(() {
         _isGenerating = false;
       });
+      print("🔄 Generation process finished, UI updated");
     }
   }
 

@@ -11,13 +11,8 @@ class ProjectModel {
   final Map<String, dynamic>? metadata;
   final String? avatarId;
   final int duration; // in seconds
-  final String? style;
-  final String? voice;
   final String aspectRatio;
   final int resolution;
-  final bool withAudio;
-  final bool withSubtitles;
-  final bool withLipSync;
 
   ProjectModel({
     required this.id,
@@ -32,13 +27,8 @@ class ProjectModel {
     this.metadata,
     this.avatarId,
     required this.duration,
-    this.style,
-    this.voice,
-    this.aspectRatio = '9:16',
+    this.aspectRatio = '720:1280',
     this.resolution = 1080,
-    this.withAudio = true,
-    this.withSubtitles = true,
-    this.withLipSync = true,
   });
 
   // Helper getters
@@ -94,13 +84,8 @@ class ProjectModel {
       metadata: json['metadata'],
       avatarId: json['avatarId'],
       duration: json['duration'] ?? 30,
-      style: json['style'],
-      voice: json['voice'],
-      aspectRatio: json['aspectRatio'] ?? '9:16',
+      aspectRatio: json['aspectRatio'] ?? json['configuration']?['aspectRatio'] ?? '720:1280',
       resolution: json['resolution'] ?? 1080,
-      withAudio: json['withAudio'] ?? true,
-      withSubtitles: json['withSubtitles'] ?? true,
-      withLipSync: json['withLipSync'] ?? true,
     );
   }
 
@@ -119,13 +104,8 @@ class ProjectModel {
       'metadata': metadata,
       'avatarId': avatarId,
       'duration': duration,
-      'style': style,
-      'voice': voice,
       'aspectRatio': aspectRatio,
       'resolution': resolution,
-      'withAudio': withAudio,
-      'withSubtitles': withSubtitles,
-      'withLipSync': withLipSync,
     };
   }
 
@@ -143,13 +123,8 @@ class ProjectModel {
     Map<String, dynamic>? metadata,
     String? avatarId,
     int? duration,
-    String? style,
-    String? voice,
     String? aspectRatio,
     int? resolution,
-    bool? withAudio,
-    bool? withSubtitles,
-    bool? withLipSync,
   }) {
     return ProjectModel(
       id: id ?? this.id,
@@ -164,13 +139,8 @@ class ProjectModel {
       metadata: metadata ?? this.metadata,
       avatarId: avatarId ?? this.avatarId,
       duration: duration ?? this.duration,
-      style: style ?? this.style,
-      voice: voice ?? this.voice,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       resolution: resolution ?? this.resolution,
-      withAudio: withAudio ?? this.withAudio,
-      withSubtitles: withSubtitles ?? this.withSubtitles,
-      withLipSync: withLipSync ?? this.withLipSync,
     );
   }
 

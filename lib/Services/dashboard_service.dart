@@ -32,27 +32,27 @@ class DashboardService {
       final futures = await Future.wait([
         // Get avatars count
         http.get(Uri.parse('$baseUrl/avatars'), headers: headers),
-        // Get videos count
-        http.get(Uri.parse('$baseUrl/videos'), headers: headers),
-        // Get completed videos count
+        // Get projects count (instead of videos)
+        http.get(Uri.parse('$baseUrl/projects'), headers: headers),
+        // Get completed projects count
         http.get(
           Uri.parse(
-            '$baseUrl/videos',
+            '$baseUrl/projects',
           ).replace(queryParameters: {'status': 'completed'}),
           headers: headers,
         ),
       ]);
 
       final avatarsResponse = futures[0];
-      final videosResponse = futures[1];
-      final completedVideosResponse = futures[2];
+      final projectsResponse = futures[1];
+      final completedProjectsResponse = futures[2];
 
       Map<String, dynamic> stats = {
         'totalAvatars': 0,
         'totalProjects': 0,
         'completedProjects': 0,
-        'availableCredits': 5, // Default credits for demo
-        'totalSpent': 85, // Mock data for now
+        'availableCredits': 0, // Will be fetched from backend
+        'totalSpent': 0, // Will be fetched from backend
       };
 
       // Parse avatars response
@@ -62,18 +62,18 @@ class DashboardService {
             avatarsData['total'] ?? avatarsData['avatars']?.length ?? 0;
       }
 
-      // Parse videos response
-      if (videosResponse.statusCode == 200) {
-        final videosData = json.decode(videosResponse.body);
+      // Parse projects response (instead of videos)
+      if (projectsResponse.statusCode == 200) {
+        final projectsData = json.decode(projectsResponse.body);
         stats['totalProjects'] =
-            videosData['total'] ?? videosData['videos']?.length ?? 0;
+            projectsData['total'] ?? projectsData['projects']?.length ?? 0;
       }
 
-      // Parse completed videos response
-      if (completedVideosResponse.statusCode == 200) {
-        final completedData = json.decode(completedVideosResponse.body);
+      // Parse completed projects response
+      if (completedProjectsResponse.statusCode == 200) {
+        final completedData = json.decode(completedProjectsResponse.body);
         stats['completedProjects'] =
-            completedData['total'] ?? completedData['videos']?.length ?? 0;
+            completedData['total'] ?? completedData['projects']?.length ?? 0;
       }
 
       return stats;
@@ -90,14 +90,18 @@ class DashboardService {
     }
   }
 
-  // Get recent projects (videos) for dashboard
+  // Get recent projects for dashboard
   static Future<List<Map<String, dynamic>>> getRecentProjects({
     int limit = 4,
   }) async {
     try {
+      print(
+        '🏠 Dashboard loading recent projects - Both text-based and avatar videos',
+      );
       final headers = await _getHeaders();
 
-      final uri = Uri.parse('$baseUrl/videos').replace(
+      // Use projects API instead of videos API
+      final uri = Uri.parse('$baseUrl/projects').replace(
         queryParameters: {
           'limit': limit.toString(),
           'page': '1',
@@ -110,19 +114,25 @@ class DashboardService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final videos = data['videos'] as List? ?? [];
+        final projects = data['projects'] as List? ?? [];
+        print('🎯 Dashboard loaded ${projects.length} recent projects');
 
-        return videos.map<Map<String, dynamic>>((video) {
+        return projects.map<Map<String, dynamic>>((project) {
           return {
-            'id': video['_id'] ?? '',
-            'title': video['title'] ?? 'Untitled',
-            'status': video['status'] ?? 'unknown',
-            'createdAt': video['createdAt'] ?? '',
-            'duration': video['duration']?.toString() ?? '0:00',
-            'videoUrl': video['videoUrl'] ?? '',
-            'thumbnailUrl': video['thumbnailUrl'] ?? 'images/project-card.png',
-            'avatarId': video['avatarId'] ?? {},
-            'metadata': video['metadata'] ?? {},
+            'id': project['_id'] ?? '',
+            'title': project['title'] ?? 'Untitled',
+            'status': project['status'] ?? 'unknown',
+            'createdAt': project['createdAt'] ?? '',
+            'type': project['type'] ?? 'unknown', // text-based or avatar-based
+            'duration':
+                project['configuration']?['duration']?.toString() ?? '0',
+            'videoUrl': project['videoUrl'] ?? '',
+            'thumbnailUrl': project['thumbnailUrl'] ?? '',
+            'description': project['description'] ?? '',
+            'aspectRatio': project['configuration']?['aspectRatio'] ?? '9:16',
+            'resolution':
+                project['configuration']?['resolution']?.toString() ?? '1080',
+            'avatarId': project['avatarId'] ?? {},
           };
         }).toList();
       } else {

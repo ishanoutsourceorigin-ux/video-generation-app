@@ -3,9 +3,15 @@ import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
 import 'package:video_gen_app/Component/project_card.dart';
 import 'package:video_gen_app/Component/round_button.dart';
+import 'package:video_gen_app/Component/video_player_dialog.dart';
+import 'package:video_gen_app/Component/download_progress_overlay.dart';
 import 'package:video_gen_app/Models/project_model.dart';
 import 'package:video_gen_app/Services/project_service.dart';
 import 'package:video_gen_app/Screens/Video/create_video.dart';
+import 'package:video_gen_app/Screens/Project/project_detail_screen.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class ProjectsScreen extends StatefulWidget {
   final bool showAppBar;
@@ -17,20 +23,12 @@ class ProjectsScreen extends StatefulWidget {
 }
 
 class _ProjectsScreenState extends State<ProjectsScreen> {
-  String selectedFilter = "All";
-  final List<String> filters = [
-    "All",
-    "Recent",
-    "Completed",
-    "Draft",
-    "Processing",
-    "Failed",
-  ];
-
   List<ProjectModel> _projects = [];
+  List<ProjectModel> _filteredProjects = [];
   bool _isLoading = true;
   String? _errorMessage;
   Map<String, int> _projectStats = {};
+  String _selectedFilter = 'all'; // 'all', 'text-based', 'avatar-based'
 
   @override
   void initState() {
@@ -49,15 +47,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     });
 
     try {
-      final status = selectedFilter.toLowerCase() == 'all'
-          ? null
-          : selectedFilter.toLowerCase();
-
-      final projects = await ProjectService.fetchProjects(status: status);
+      print('📂 Loading all projects (text-based + avatar)');
+      final projects = await ProjectService.fetchProjects();
+      print('🎯 ProjectService returned ${projects.length} projects');
 
       if (mounted) {
         setState(() {
           _projects = projects;
+          _filteredProjects = _filterProjects(projects);
           _isLoading = false;
         });
       }
@@ -69,6 +66,26 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         });
       }
     }
+  }
+
+  // Filter projects based on selected filter
+  List<ProjectModel> _filterProjects(List<ProjectModel> projects) {
+    switch (_selectedFilter) {
+      case 'text-based':
+        return projects.where((p) => p.type == 'text-based').toList();
+      case 'avatar-based':
+        return projects.where((p) => p.type == 'avatar-based').toList();
+      default:
+        return projects;
+    }
+  }
+
+  // Update filter
+  void _updateFilter(String filter) {
+    setState(() {
+      _selectedFilter = filter;
+      _filteredProjects = _filterProjects(_projects);
+    });
   }
 
   // Load project statistics
@@ -90,18 +107,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     if (!mounted) return;
 
     try {
-      final status = selectedFilter.toLowerCase() == 'all'
-          ? null
-          : selectedFilter.toLowerCase();
-
-      final projects = await ProjectService.fetchProjects(
-        status: status,
-        forceRefresh: true,
-      );
+      final projects = await ProjectService.fetchProjects(forceRefresh: true);
 
       if (mounted) {
         setState(() {
           _projects = projects;
+          _filteredProjects = _filterProjects(projects);
           _errorMessage = null;
         });
       }
@@ -152,13 +163,13 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   // Play project
   void _playProject(ProjectModel project) {
-    if (project.videoUrl != null && project.isCompleted) {
-      // TODO: Implement video player
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Playing ${project.title}"),
-          backgroundColor: Colors.green,
-        ),
+    if (project.videoUrl != null &&
+        project.videoUrl!.isNotEmpty &&
+        project.isCompleted) {
+      // Open video player dialog
+      showDialog(
+        context: context,
+        builder: (context) => VideoPlayerDialog(videoUrl: project.videoUrl!),
       );
     } else if (project.isProcessing) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -177,16 +188,127 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     }
   }
 
-  // Download project
-  void _downloadProject(ProjectModel project) {
-    if (project.videoUrl != null && project.isCompleted) {
-      // TODO: Implement download functionality
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Downloading ${project.title}"),
-          backgroundColor: Colors.blue,
-        ),
-      );
+  // Download project with attractive progress overlay
+  Future<void> _downloadProject(ProjectModel project) async {
+    if (project.videoUrl != null &&
+        project.videoUrl!.isNotEmpty &&
+        project.isCompleted) {
+      OverlayEntry? overlayEntry;
+
+      try {
+        // Show attractive download progress overlay
+        overlayEntry = OverlayEntry(
+          builder: (context) => const DownloadProgressOverlay(),
+        );
+        Overlay.of(context).insert(overlayEntry);
+
+        // Get the video data
+        final response = await http.get(Uri.parse(project.videoUrl!));
+
+        if (response.statusCode == 200) {
+          // Get the appropriate directory based on platform
+          Directory? directory;
+
+          if (Platform.isAndroid) {
+            try {
+              final externalDir = await getExternalStorageDirectory();
+              if (externalDir != null) {
+                final appDownloads = Directory('${externalDir.path}/Downloads');
+                await appDownloads.create(recursive: true);
+                directory = appDownloads;
+              }
+            } catch (e) {
+              directory = await getApplicationDocumentsDirectory();
+            }
+          } else if (Platform.isIOS) {
+            directory = await getApplicationDocumentsDirectory();
+          }
+
+          if (directory == null) {
+            if (overlayEntry != null) {
+              overlayEntry.remove();
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Unable to access storage directory'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+
+          // Generate filename with timestamp
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          final cleanTitle = project.title.replaceAll(RegExp(r'[^\w\s-]'), '');
+          final filename = '${cleanTitle}_$timestamp.mp4';
+          final filePath = '${directory.path}/$filename';
+
+          // Write the file
+          final file = File(filePath);
+          await file.writeAsBytes(response.bodyBytes);
+
+          // Remove progress overlay
+          if (overlayEntry != null) {
+            overlayEntry.remove();
+          }
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Download Complete!',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Saved to: ${directory.path}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        } else {
+          if (overlayEntry != null) {
+            overlayEntry.remove();
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Failed to download video (${response.statusCode})',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (overlayEntry != null) {
+          overlayEntry.remove();
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -194,30 +316,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           backgroundColor: Colors.orange,
         ),
       );
-    }
-  }
-
-  // Get count for filter badges
-  int _getFilterCount(String filter) {
-    switch (filter.toLowerCase()) {
-      case 'all':
-        return _projectStats['total'] ?? 0;
-      case 'completed':
-        return _projectStats['completed'] ?? 0;
-      case 'draft':
-        return _projectStats['draft'] ?? 0;
-      case 'processing':
-        return _projectStats['processing'] ?? 0;
-      case 'failed':
-        return _projectStats['failed'] ?? 0;
-      case 'recent':
-        // For recent, show all projects from last 7 days
-        final recentCount = _projects
-            .where((p) => DateTime.now().difference(p.createdAt).inDays <= 7)
-            .length;
-        return recentCount;
-      default:
-        return 0;
     }
   }
 
@@ -360,87 +458,54 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
               SizedBox(height: isTablet ? 32 : 24),
 
-              // Filter tabs
+              // Filter Section
+              // Row(
+              //   children: [
+              //     Text(
+              //       "Filter by Type:",
+              //       style: TextStyle(
+              //         color: Colors.white,
+              //         fontSize: isTablet ? 18 : 16,
+              //         fontWeight: FontWeight.w600,
+              //       ),
+              //     ),
+              //   ],
+              // ),
+              // SizedBox(height: isTablet ? 16 : 12),
+
+              // Filter Buttons
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: filters.map((filter) {
-                    final isSelected = selectedFilter == filter;
-                    final count = _getFilterCount(filter);
-
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          selectedFilter = filter;
-                        });
-                        _loadProjects(); // Reload projects with new filter
-                      },
-                      child: Container(
-                        margin: EdgeInsets.only(right: isTablet ? 16 : 12),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isTablet ? 24 : 20,
-                          vertical: isTablet ? 12 : 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.purpleColor
-                              : AppColors.darkGreyColor,
-                          borderRadius: BorderRadius.circular(
-                            isTablet ? 24 : 20,
-                          ),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.purpleColor
-                                : AppColors.greyColor.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              filter,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : Colors.grey.shade400,
-                                fontSize: isTablet ? 16 : 14,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                            if (count > 0) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? Colors.white.withOpacity(0.2)
-                                      : AppColors.greyColor.withOpacity(0.3),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  count.toString(),
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? Colors.white
-                                        : Colors.grey.shade400,
-                                    fontSize: isTablet ? 12 : 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                  children: [
+                    _buildFilterButton(
+                      title: "All Videos",
+                      filterValue: "all",
+                      count: _projects.length,
+                      isTablet: isTablet,
+                    ),
+                    SizedBox(width: isTablet ? 12 : 8),
+                    _buildFilterButton(
+                      title: "Text Based",
+                      filterValue: "text-based",
+                      count: _projects
+                          .where((p) => p.type == 'text-based')
+                          .length,
+                      isTablet: isTablet,
+                    ),
+                    SizedBox(width: isTablet ? 12 : 8),
+                    _buildFilterButton(
+                      title: "Avatar Based",
+                      filterValue: "avatar-based",
+                      count: _projects
+                          .where((p) => p.type == 'avatar-based')
+                          .length,
+                      isTablet: isTablet,
+                    ),
+                  ],
                 ),
               ),
+
               SizedBox(height: isTablet ? 32 : 24),
 
               // Projects grid with pull to refresh
@@ -471,7 +536,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     }
 
     // Show empty state if no projects
-    if (_projects.isEmpty) {
+    if (_filteredProjects.isEmpty && !_isLoading) {
       return _buildEmptyState();
     }
 
@@ -525,17 +590,56 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             mainAxisSpacing: mainAxisSpacing,
             childAspectRatio: childAspectRatio,
           ),
-          itemCount: _projects.length,
+          itemCount: _filteredProjects.length,
           padding: EdgeInsets.only(bottom: isTablet ? 30 : 20),
           itemBuilder: (context, index) {
-            final project = _projects[index];
+            final project = _filteredProjects[index];
             return ProjectCard(
               title: project.title,
               createdDate: project.formattedDate,
               duration: project.durationFormatted,
+              status: project.status,
+              projectId: project.id,
               imagePath: project.thumbnailUrl.isNotEmpty
                   ? project.thumbnailUrl
                   : 'images/project-card.png',
+              onTap: () {
+                print('🔍 Project Screen Project ID: ${project.id}');
+                print('🔍 Project Screen Project Title: ${project.title}');
+                print('🔍 Project Screen Project Status: ${project.status}');
+                
+                if (project.id.isNotEmpty) {
+                  Navigator.push(
+                    context,
+                    AnimatedPageRoute(
+                      page: ProjectDetailScreen(
+                        projectId: project.id,
+                        initialProject: {
+                          '_id': project.id,
+                          'title': project.title,
+                          'description': project.description,
+                          'status': project.status,
+                          'type': project.type,
+                          'thumbnailUrl': project.thumbnailUrl,
+                          'videoUrl': project.videoUrl,
+                          'createdAt': project.createdAt.toIso8601String(),
+                          'updatedAt': project.updatedAt.toIso8601String(),
+                          'duration': project.duration,
+                          'aspectRatio': project.aspectRatio,
+                          'resolution': project.resolution,
+                        },
+                      ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Unable to open project details. Invalid project ID.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
               onPlay: () => _playProject(project),
               onDownload: () => _downloadProject(project),
               onDelete: () =>
@@ -544,6 +648,68 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           },
         );
       },
+    );
+  }
+
+  // Build filter button
+  Widget _buildFilterButton({
+    required String title,
+    required String filterValue,
+    required int count,
+    required bool isTablet,
+  }) {
+    final isSelected = _selectedFilter == filterValue;
+
+    return GestureDetector(
+      onTap: () => _updateFilter(filterValue),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isTablet ? 20 : 16,
+          vertical: isTablet ? 12 : 10,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.purpleColor : AppColors.darkGreyColor,
+          borderRadius: BorderRadius.circular(isTablet ? 24 : 20),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.purpleColor
+                : AppColors.greyColor.withOpacity(0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey.shade400,
+                fontSize: isTablet ? 16 : 14,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+            if (count > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white.withOpacity(0.2)
+                      : AppColors.greyColor.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.grey.shade400,
+                    fontSize: isTablet ? 12 : 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

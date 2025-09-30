@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:video_gen_app/Component/project_card.dart';
+import 'package:video_gen_app/Component/download_progress_overlay.dart';
 import 'package:video_gen_app/Screens/Avatar/create_avatar.dart';
 import 'package:video_gen_app/Screens/Project/project_screen.dart';
+import 'package:video_gen_app/Screens/Project/project_detail_screen.dart';
 import 'package:video_gen_app/Screens/Video/create_video.dart';
 import 'package:video_gen_app/Screens/Avatar/my_avatars_screen.dart';
 import 'package:video_gen_app/Services/dashboard_service.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
+import 'package:video_gen_app/Services/project_status_service.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
 import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Component/dashboard_card.dart';
 import 'package:video_gen_app/Component/round_button.dart';
+import 'package:video_gen_app/Component/video_player_dialog.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool showAppBar;
@@ -35,7 +42,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   };
 
   List<Map<String, dynamic>> _recentProjects = [];
-  List<Map<String, dynamic>> _userAvatars = [];
 
   bool _isLoadingStats = true;
   bool _isLoadingProjects = true;
@@ -49,6 +55,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadDashboardData();
+
+    // Initialize project status notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ProjectNotificationService().initialize(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    ProjectNotificationService().dispose();
+    super.dispose();
   }
 
   // Load all dashboard data
@@ -90,7 +107,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _isLoadingProjects = true;
       });
 
-      final projects = await DashboardService.getRecentProjects(limit: 6);
+      final projects = await DashboardService.getRecentProjects(limit: 4);
 
       if (mounted) {
         setState(() {
@@ -108,10 +125,125 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // Download video method with attractive progress overlay
+  Future<void> _downloadVideo(String videoUrl, String projectTitle) async {
+    OverlayEntry? overlayEntry;
+
+    try {
+      // Show attractive download progress overlay
+      overlayEntry = OverlayEntry(
+        builder: (context) => const DownloadProgressOverlay(),
+      );
+      Overlay.of(context).insert(overlayEntry);
+
+      // Get the video data
+      final response = await http.get(Uri.parse(videoUrl));
+
+      if (response.statusCode == 200) {
+        // Get the appropriate directory based on platform
+        Directory? directory;
+
+        if (Platform.isAndroid) {
+          try {
+            final externalDir = await getExternalStorageDirectory();
+            if (externalDir != null) {
+              final appDownloads = Directory('${externalDir.path}/Downloads');
+              await appDownloads.create(recursive: true);
+              directory = appDownloads;
+            }
+          } catch (e) {
+            directory = await getApplicationDocumentsDirectory();
+          }
+        } else if (Platform.isIOS) {
+          directory = await getApplicationDocumentsDirectory();
+        }
+
+        if (directory == null) {
+          overlayEntry.remove();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to access storage directory'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        // Generate filename with timestamp
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final cleanTitle = projectTitle.replaceAll(RegExp(r'[^\w\s-]'), '');
+        final filename = '${cleanTitle}_$timestamp.mp4';
+        final filePath = '${directory.path}/$filename';
+
+        // Write the file
+        final file = File(filePath);
+        await file.writeAsBytes(response.bodyBytes);
+
+        // Remove progress overlay
+        overlayEntry.remove();
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Download Complete!',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Saved to: ${directory.path}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      } else {
+        overlayEntry.remove();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download video (${response.statusCode})'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (overlayEntry != null) {
+        overlayEntry.remove();
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Download failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      print('Download error: $e');
+    }
+  }
+
   // Delete project
   Future<void> _deleteProject(String projectId, int index) async {
     try {
-      await ApiService.deleteVideo(projectId);
+      await ApiService.deleteProject(
+        projectId,
+      ); // Fixed: use deleteProject instead of deleteVideo
 
       setState(() {
         _recentProjects.removeAt(index);
@@ -121,12 +253,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Project deleted successfully')),
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Project deleted successfully'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to delete project: $e')));
+      print('Error deleting project: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('Failed to delete project: ${e.toString()}'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
     }
   }
 
@@ -251,46 +412,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             childAspectRatio = 1.8;
                           }
 
-                          return GridView.count(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            crossAxisCount: crossAxisCount,
-                            crossAxisSpacing: isTablet ? 16 : 12,
-                            mainAxisSpacing: isTablet ? 16 : 12,
-                            childAspectRatio: childAspectRatio,
-                            children: [
-                              DashboardCard(
-                                title: "Available Credits",
-                                value:
-                                    _dashboardStats['availableCredits']
-                                        ?.toString() ??
-                                    "0",
-                                imagePath: "images/credit-icon.png",
-                              ),
-                              DashboardCard(
-                                title: "Total Projects",
-                                value:
-                                    _dashboardStats['totalProjects']
-                                        ?.toString() ??
-                                    "0",
-                                imagePath: "images/project-icon.png",
-                              ),
-                              DashboardCard(
-                                title: "Completed",
-                                value:
-                                    _dashboardStats['completedProjects']
-                                        ?.toString() ??
-                                    "0",
-                                imagePath: "images/completed-icon.png",
-                              ),
-                              DashboardCard(
-                                title: "Total Spent",
-                                value:
-                                    "\$${_dashboardStats['totalSpent']?.toString() ?? "0"}",
-                                imagePath: "images/money-icon.png",
-                              ),
-                            ],
-                          );
+                          return _isLoadingStats
+                              ? Container(
+                                  height: 200,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.purpleColor,
+                                    ),
+                                  ),
+                                )
+                              : _errorMessage.isNotEmpty
+                              ? Container(
+                                  height: 200,
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.error_outline,
+                                          color: Colors.red,
+                                          size: 48,
+                                        ),
+                                        SizedBox(height: 16),
+                                        Text(
+                                          _errorMessage,
+                                          style: TextStyle(
+                                            color: Colors.red,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : GridView.count(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  crossAxisCount: crossAxisCount,
+                                  crossAxisSpacing: isTablet ? 16 : 12,
+                                  mainAxisSpacing: isTablet ? 16 : 12,
+                                  childAspectRatio: childAspectRatio,
+                                  children: [
+                                    DashboardCard(
+                                      title: "Available Credits",
+                                      value:
+                                          _dashboardStats['availableCredits']
+                                              ?.toString() ??
+                                          "0",
+                                      imagePath: "images/credit-icon.png",
+                                    ),
+                                    DashboardCard(
+                                      title: "Total Projects",
+                                      value:
+                                          _dashboardStats['totalProjects']
+                                              ?.toString() ??
+                                          "0",
+                                      imagePath: "images/project-icon.png",
+                                    ),
+                                    DashboardCard(
+                                      title: "Completed",
+                                      value:
+                                          _dashboardStats['completedProjects']
+                                              ?.toString() ??
+                                          "0",
+                                      imagePath: "images/completed-icon.png",
+                                    ),
+                                    DashboardCard(
+                                      title: "Total Spent",
+                                      value:
+                                          "\$${_dashboardStats['totalSpent']?.toString() ?? "0"}",
+                                      imagePath: "images/money-icon.png",
+                                    ),
+                                  ],
+                                );
                         },
                       ),
                       const SizedBox(height: 24),
@@ -422,31 +617,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             : _recentProjects.isEmpty
                             ? Container(
                                 padding: const EdgeInsets.all(40),
-                                child: Column(
-                                  children: [
-                                    Icon(
-                                      Icons.video_library_outlined,
-                                      size: 64,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      "No projects yet",
-                                      style: TextStyle(
-                                        color: Colors.grey.shade400,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      "Create your first video to get started",
-                                      style: TextStyle(
+                                child: Center(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.video_library_outlined,
+                                        size: 64,
                                         color: Colors.grey.shade600,
-                                        fontSize: 14,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        "No projects yet",
+                                        style: TextStyle(
+                                          color: Colors.grey.shade400,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        "Create your first video to get started",
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               )
                             : LayoutBuilder(
@@ -493,20 +692,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             project['thumbnailUrl'] ??
                                             "images/project-card.png",
                                         status: project['status'] ?? 'unknown',
+                                        projectId:
+                                            project['_id'] ?? project['id'],
+                                        onTap: () {
+                                          final projectId =
+                                              project['_id'] ?? project['id'];
+                                          print('🔍 Dashboard Project ID: $projectId');
+                                          print('🔍 Dashboard Project Data: ${project.keys}');
+                                          print('🔍 Dashboard Project _id: ${project['_id']}');
+                                          print('🔍 Dashboard Project id: ${project['id']}');
+                                          
+                                          if (projectId != null && projectId.toString().isNotEmpty) {
+                                            navigateWithAnimation(
+                                              context,
+                                              ProjectDetailScreen(
+                                                projectId: projectId.toString(),
+                                                initialProject: project,
+                                              ),
+                                            );
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Unable to open project details. Invalid project ID.'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        },
                                         onPlay: () {
                                           final videoUrl = project['videoUrl'];
                                           if (videoUrl != null &&
                                               videoUrl.isNotEmpty) {
-                                            // TODO: Open video player
-                                            print('Playing video: $videoUrl');
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Video player will open here',
-                                                ),
-                                              ),
+                                            // Open video player dialog
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) =>
+                                                  VideoPlayerDialog(
+                                                    videoUrl: videoUrl,
+                                                  ),
                                             );
                                           } else {
                                             ScaffoldMessenger.of(
@@ -520,22 +743,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             );
                                           }
                                         },
-                                        onDownload: () {
+                                        onDownload: () async {
                                           final videoUrl = project['videoUrl'];
                                           if (videoUrl != null &&
                                               videoUrl.isNotEmpty) {
-                                            // TODO: Download video
-                                            print(
-                                              'Downloading video: $videoUrl',
-                                            );
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Download will start shortly',
-                                                ),
-                                              ),
+                                            await _downloadVideo(
+                                              videoUrl,
+                                              project['title'] ?? 'video',
                                             );
                                           } else {
                                             ScaffoldMessenger.of(
@@ -589,10 +803,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           );
 
                                           if (confirmed == true) {
-                                            await _deleteProject(
-                                              project['id'],
-                                              index,
-                                            );
+                                            // Use the correct ID field - try _id first, then fallback to id
+                                            final projectId =
+                                                project['_id'] ?? project['id'];
+                                            if (projectId != null) {
+                                              await _deleteProject(
+                                                projectId,
+                                                index,
+                                              );
+                                            }
                                           }
                                         },
                                       );
@@ -600,6 +819,115 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   );
                                 },
                               ),
+                        const SizedBox(height: 24),
+
+                        // Generated Videos Section
+                        // Row(
+                        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        //   children: [
+                        //     const Text(
+                        //       "Generated Videos",
+                        //       style: TextStyle(
+                        //         color: Colors.white,
+                        //         fontSize: 22,
+                        //         fontWeight: FontWeight.bold,
+                        //       ),
+                        //     ),
+                        //     GestureDetector(
+                        //       onTap: () {
+                        //         Navigator.push(
+                        //           context,
+                        //           AnimatedPageRoute(
+                        //             page: const CompletedVideosScreen(),
+                        //           ),
+                        //         );
+                        //       },
+                        //       child: Text(
+                        //         "See All",
+                        //         style: TextStyle(
+                        //           color: AppColors.purpleColor,
+                        //           fontSize: 16,
+                        //           fontWeight: FontWeight.w600,
+                        //         ),
+                        //       ),
+                        //     ),
+                        //   ],
+                        // ),
+                        // const SizedBox(height: 16),
+
+                        // // Generated Videos Grid
+                        // _isLoadingVideos
+                        //     ? const Center(
+                        //         child: Padding(
+                        //           padding: EdgeInsets.all(40.0),
+                        //           child: CircularProgressIndicator(),
+                        //         ),
+                        //       )
+                        //     : _generatedVideos.isEmpty
+                        //     ? Center(
+                        //         child: Container(
+                        //           padding: const EdgeInsets.all(40),
+                        //           child: Column(
+                        //             crossAxisAlignment:
+                        //                 CrossAxisAlignment.center,
+                        //             children: [
+                        //               Icon(
+                        //                 Icons.video_library_outlined,
+                        //                 size: 64,
+                        //                 color: Colors.grey.shade600,
+                        //               ),
+                        //               const SizedBox(height: 16),
+                        //               Text(
+                        //                 "No videos generated yet",
+                        //                 style: TextStyle(
+                        //                   color: Colors.grey.shade400,
+                        //                   fontSize: 18,
+                        //                   fontWeight: FontWeight.w500,
+                        //                 ),
+                        //               ),
+                        //               const SizedBox(height: 8),
+                        //               Text(
+                        //                 "Create your first video to see it here",
+                        //                 style: TextStyle(
+                        //                   color: Colors.grey.shade600,
+                        //                   fontSize: 14,
+                        //                 ),
+                        //               ),
+                        //             ],
+                        //           ),
+                        //         ),
+                        //       )
+                        //     : LayoutBuilder(
+                        //         builder: (context, constraints) {
+                        //           final width = constraints.maxWidth;
+
+                        //           int crossAxisCount = 2;
+                        //           if (width > 600) {
+                        //             crossAxisCount = 3;
+                        //           }
+                        //           if (width > 900) {
+                        //             crossAxisCount = 4;
+                        //           }
+
+                        //           return GridView.builder(
+                        //             shrinkWrap: true,
+                        //             physics:
+                        //                 const NeverScrollableScrollPhysics(),
+                        //             gridDelegate:
+                        //                 SliverGridDelegateWithFixedCrossAxisCount(
+                        //                   crossAxisCount: crossAxisCount,
+                        //                   crossAxisSpacing: 16,
+                        //                   mainAxisSpacing: 16,
+                        //                   childAspectRatio: 0.75,
+                        //                 ),
+                        //             itemCount: _generatedVideos.length,
+                        //             itemBuilder: (context, index) {
+                        //               final video = _generatedVideos[index];
+                        //               return _buildVideoCard(video);
+                        //             },
+                        //           );
+                        //         },
+                        //       ),
                         const SizedBox(height: 24),
                       ],
 

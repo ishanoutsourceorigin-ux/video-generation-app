@@ -14,6 +14,7 @@ dotenv.config();
 // Import routes
 const avatarRoutes = require('./routes/avatars');
 const videoRoutes = require('./routes/videos');
+const projectRoutes = require('./routes/projects');
 const paymentRoutes = require('./routes/payments');
 const userRoutes = require('./routes/user');
 const authMiddleware = require('./middleware/auth');
@@ -113,6 +114,7 @@ app.get('/', (req, res) => {
 // API Routes
 app.use('/api/avatars', authMiddleware, avatarRoutes);
 app.use('/api/videos', authMiddleware, videoRoutes);
+app.use('/api/projects', authMiddleware, projectRoutes);
 app.use('/api/payments', paymentRoutes); // Some payment routes may not need auth
 app.use('/api/user', userRoutes); // User routes include auth middleware where needed
 
@@ -143,6 +145,7 @@ app.get('/api', (req, res) => {
     endpoints: {
       avatars: '/api/avatars',
       videos: '/api/videos',
+      projects: '/api/projects',
       payments: '/api/payments',
       health: '/health'
     },

@@ -24,24 +24,31 @@ class ProjectService {
       }
 
       // Fetch from API
-      final response = await ApiService.getVideos(
+      print('🔍 Fetching projects from API with status: $status');
+      final response = await ApiService.getProjects(
         status: status,
         limit: 100, // Get more projects
         page: 1,
       );
 
+      print('📋 Projects API Response: $response');
+
       final List<ProjectModel> projects = [];
-      if (response['data'] != null) {
+      if (response['projects'] != null) {
         final List<dynamic> projectsJson =
-            response['data']['videos'] ?? response['data'];
+            response['projects'] as List<dynamic>;
+        print('📦 Found ${projectsJson.length} projects');
         for (var json in projectsJson) {
           try {
             projects.add(ProjectModel.fromJson(json));
           } catch (e) {
-            print('Error parsing project: $e');
+            print('❌ Error parsing project: $e');
+            print('🔧 Project JSON: $json');
             continue;
           }
         }
+      } else {
+        print('⚠️ No projects field in response');
       }
 
       // Cache the results
@@ -49,16 +56,18 @@ class ProjectService {
 
       return _filterProjects(projects, status: status, type: type);
     } catch (e) {
-      print('Error fetching projects from API: $e');
+      print('❌ Error fetching projects from API: $e');
 
       // Fallback to cached data
       final cachedProjects = await _getCachedProjects();
+      print('📱 Found ${cachedProjects.length} cached projects');
       if (cachedProjects.isNotEmpty) {
         return _filterProjects(cachedProjects, status: status, type: type);
       }
 
-      // If no cache, return sample data for development
-      return _getSampleProjects();
+      // If no cache, return empty list
+      print('⚠️ No cached projects, returning empty list');
+      return [];
     }
   }
 
@@ -73,31 +82,23 @@ class ProjectService {
     String type = 'text-based',
     String aspectRatio = '9:16',
     int resolution = 1080,
-    bool withAudio = true,
-    bool withSubtitles = true,
-    bool withLipSync = true,
   }) async {
     try {
       Map<String, dynamic> response;
 
       if (type == 'avatar-based' && avatarId != null) {
-        response = await ApiService.createVideo(
+        response = await ApiService.createAvatarBasedVideo(
           avatarId: avatarId,
           title: title,
           script: description,
         );
       } else {
-        response = await ApiService.createTextBasedVideo(
+        response = await ApiService.createTextBasedProject(
           title: title,
           description: description,
-          style: style,
-          voice: voice,
-          duration: duration,
           aspectRatio: aspectRatio,
-          resolution: resolution,
-          withAudio: withAudio,
-          withSubtitles: withSubtitles,
-          withLipSync: withLipSync,
+          resolution: resolution.toString(),
+          duration: duration.toString(),
         );
       }
 
@@ -120,7 +121,7 @@ class ProjectService {
   // Delete project
   static Future<bool> deleteProject(String projectId) async {
     try {
-      await ApiService.deleteVideo(projectId);
+      await ApiService.deleteProject(projectId);
 
       // Remove from cache
       await _removeProjectFromCache(projectId);
@@ -135,7 +136,7 @@ class ProjectService {
   // Get single project
   static Future<ProjectModel?> getProject(String projectId) async {
     try {
-      final response = await ApiService.getVideo(projectId);
+      final response = await ApiService.getProject(projectId);
       if (response['data'] != null) {
         return ProjectModel.fromJson(response['data']);
       }
@@ -247,93 +248,6 @@ class ProjectService {
     } catch (e) {
       print('Error clearing cache: $e');
     }
-  }
-
-  // Sample data for development/testing
-  static List<ProjectModel> _getSampleProjects() {
-    return [
-      ProjectModel(
-        id: 'sample_1',
-        title: 'Welcome Video',
-        description: 'Company welcome message for new employees',
-        thumbnailUrl: 'images/project-card.png',
-        status: 'completed',
-        type: 'text-based',
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 1)),
-        duration: 45,
-        style: 'professional',
-        voice: 'sarah',
-      ),
-      ProjectModel(
-        id: 'sample_2',
-        title: 'Product Demo',
-        description: 'Showcase of our latest product features',
-        thumbnailUrl: 'images/project-card.png',
-        status: 'processing',
-        type: 'avatar-based',
-        createdAt: DateTime.now().subtract(const Duration(days: 2)),
-        updatedAt: DateTime.now().subtract(const Duration(hours: 2)),
-        duration: 120,
-        style: 'modern',
-        voice: 'john',
-        avatarId: 'avatar_123',
-      ),
-      ProjectModel(
-        id: 'sample_3',
-        title: 'Training Module',
-        description: 'Employee safety training video',
-        thumbnailUrl: 'images/project-card.png',
-        status: 'draft',
-        type: 'text-based',
-        createdAt: DateTime.now().subtract(const Duration(days: 3)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 3)),
-        duration: 300,
-        style: 'educational',
-        voice: 'emma',
-      ),
-      ProjectModel(
-        id: 'sample_4',
-        title: 'Marketing Campaign',
-        description: 'Promotional video for summer sale',
-        thumbnailUrl: 'images/project-card.png',
-        status: 'completed',
-        type: 'avatar-based',
-        createdAt: DateTime.now().subtract(const Duration(days: 5)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 4)),
-        duration: 60,
-        style: 'energetic',
-        voice: 'mike',
-        avatarId: 'avatar_456',
-      ),
-      ProjectModel(
-        id: 'sample_5',
-        title: 'Customer Testimonial',
-        description: 'Happy customer sharing their experience',
-        thumbnailUrl: 'images/project-card.png',
-        status: 'completed',
-        type: 'text-based',
-        createdAt: DateTime.now().subtract(const Duration(days: 7)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 6)),
-        duration: 90,
-        style: 'authentic',
-        voice: 'lisa',
-      ),
-      ProjectModel(
-        id: 'sample_6',
-        title: 'Event Recap',
-        description: 'Highlights from our annual conference',
-        thumbnailUrl: 'images/project-card.png',
-        status: 'failed',
-        type: 'avatar-based',
-        createdAt: DateTime.now().subtract(const Duration(days: 10)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 8)),
-        duration: 180,
-        style: 'documentary',
-        voice: 'alex',
-        avatarId: 'avatar_789',
-      ),
-    ];
   }
 
   // Statistics methods

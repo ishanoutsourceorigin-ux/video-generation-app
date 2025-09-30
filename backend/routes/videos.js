@@ -360,65 +360,21 @@ async function processTextBasedVideoGeneration(videoId, {
     
     console.log(`Estimated processing time: ${processingTime.toFixed(1)} minutes`);
 
-    // For demo, we'll create a placeholder video after a shorter delay
+    // In production, integrate with actual AI video generation service
+    // For now, we'll mark the video as processing and let the real service complete it
     setTimeout(async () => {
       try {
-        // In a real implementation, this would be the actual AI-generated video URL
-        // Different sample videos based on aspect ratio for demo
-        let demoVideoUrl;
-        switch (aspectRatio) {
-          case '1:1':
-            demoVideoUrl = 'https://sample-videos.com/zip/10/mp4/SampleVideo_640x640_1mb.mp4';
-            break;
-          case '9:16':
-            demoVideoUrl = 'https://sample-videos.com/zip/10/mp4/SampleVideo_720x1280_1mb.mp4';
-            break;
-          case '16:19':
-            demoVideoUrl = 'https://sample-videos.com/zip/10/mp4/SampleVideo_720x1280_1mb.mp4';
-            break;
-          case '3:4':
-            demoVideoUrl = 'https://sample-videos.com/zip/10/mp4/SampleVideo_720x960_1mb.mp4';
-            break;
-          default:
-            demoVideoUrl = 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4';
-        }
+        // This would be replaced with actual Runway ML or other service integration
+        // The video should remain in 'processing' status until real generation is complete
         
-        // Update video record with completed status
-        await Video.findByIdAndUpdate(videoId, {
-          status: 'completed',
-          videoUrl: demoVideoUrl,
-          duration: duration,
-          processingCompletedAt: new Date(),
-          metadata: {
-            type: 'text-based',
-            description,
-            style,
-            voice,
-            duration,
-            aspectRatio,
-            resolution,
-            withAudio,
-            withSubtitles,
-            withLipSync,
-            provider: 'ai-text-generator',
-            generationMethod: 'AI Text-to-Video',
-            videoConfig: {
-              aspectRatio,
-              resolution: `${resolution}p`,
-              features: {
-                audio: withAudio,
-                subtitles: withSubtitles,
-                lipSync: withLipSync,
-              }
-            }
-          }
-        });
-
-        console.log(`Text-based video generation completed for ${videoId}`);
-        console.log(`Generated video with config: ${aspectRatio}, ${resolution}p, Audio: ${withAudio}, Subtitles: ${withSubtitles}, LipSync: ${withLipSync}`);
+        console.log(`Video ${videoId} processing - integrate with real AI service here`);
+        
+        // TODO: Integrate with actual AI video generation service (Runway ML, etc.)
+        // The video should remain in 'processing' status until actual generation is complete
+        // Remove this setTimeout in production and replace with real AI service calls
         
       } catch (error) {
-        console.error(`Text-based video generation failed for ${videoId}:`, error);
+        console.error(`Video processing setup failed for ${videoId}:`, error);
         
         await Video.findByIdAndUpdate(videoId, {
           status: 'failed',

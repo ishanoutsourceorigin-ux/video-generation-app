@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     mq = MediaQuery.of(context).size;
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'AI Video Generator',
       debugShowCheckedModeBanner: false,
       home: const SplashScreen(),
     );

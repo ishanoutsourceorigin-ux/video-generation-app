@@ -11,7 +11,8 @@ if (!admin.apps.length) {
   
   const isValidPrivateKey = process.env.FIREBASE_PRIVATE_KEY && 
                            process.env.FIREBASE_PRIVATE_KEY.includes('BEGIN PRIVATE KEY') &&
-                           !process.env.FIREBASE_PRIVATE_KEY.includes('your_private_key');
+                           !process.env.FIREBASE_PRIVATE_KEY.includes('YOUR_ACTUAL_PRIVATE_KEY_HERE') &&
+                           !process.env.FIREBASE_PRIVATE_KEY.includes('PLACEHOLDER_PRIVATE_KEY_CONTENT');
 
   if (hasFirebaseCredentials && isValidPrivateKey) {
     try {
@@ -44,19 +45,25 @@ if (!admin.apps.length) {
 
 const authMiddleware = async (req, res, next) => {
   try {
-    // Check if we're in development mode or Firebase is not initialized
-    const isDevelopmentMode = process.env.DEVELOPMENT_MODE === 'true' || !firebaseInitialized;
+    // Check for temporary testing bypass (remove this in production with real Firebase)
+    const isTemporaryTesting = process.env.TEMPORARY_FIREBASE_BYPASS === 'true';
     
-    if (isDevelopmentMode) {
-      // Development mode - create a mock user
-      console.warn('🔧 Development Mode: Using mock authentication');
-      req.user = {
-        uid: 'dev-user-123',
-        email: 'developer@example.com',
-        name: 'Development User',
-        picture: 'https://via.placeholder.com/150/0000FF/FFFFFF?text=DEV',
-      };
-      return next();
+    if (!firebaseInitialized) {
+      if (isTemporaryTesting) {
+        console.warn('⚠️  TEMPORARY BYPASS: Using test user (configure Firebase for production)');
+        req.user = {
+          uid: 'temp-user-for-testing',
+          email: 'test@example.com',
+          name: 'Test User',
+          picture: null,
+        };
+        return next();
+      }
+      
+      console.error('❌ Firebase not initialized. Configure Firebase credentials in .env');
+      return res.status(500).json({ 
+        error: 'Server configuration error. Please contact support.' 
+      });
     }
 
     const authHeader = req.headers.authorization;

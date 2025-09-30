@@ -81,6 +81,64 @@ class CloudinaryService {
   }
 
   /**
+   * Upload video to Cloudinary
+   * @param {string} filePath - Local video file path
+   * @param {string} fileName - Desired file name
+   * @returns {Promise<object>} Cloudinary result
+   */
+  static async uploadVideo(filePath, fileName) {
+    try {
+      const result = await cloudinary.uploader.upload(filePath, {
+        resource_type: 'video',
+        folder: 'ai-generated-videos',
+        public_id: fileName,
+        quality: 'auto',
+        format: 'mp4'
+      });
+      return result;
+    } catch (error) {
+      console.error('Upload video error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload raw file to Cloudinary
+   * @param {string} filePath - Local file path
+   * @param {string} fileName - Desired file name
+   * @returns {Promise<object>} Cloudinary result
+   */
+  static async uploadRawFile(filePath, fileName) {
+    try {
+      const result = await cloudinary.uploader.upload(filePath, {
+        resource_type: 'raw',
+        folder: 'ai-generated-data',
+        public_id: fileName
+      });
+      return result;
+    } catch (error) {
+      console.error('Upload raw file error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clean up local file
+   * @param {string} filePath - Local file path to delete
+   */
+  static cleanupLocalFile(filePath) {
+    try {
+      const fs = require('fs');
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log('🗑️ Local file cleaned up:', filePath);
+      }
+    } catch (error) {
+      console.error('❌ Error cleaning up local file:', error);
+    }
+  }
+
+  /**
    * Generate upload signature for frontend uploads
    * @param {object} params - Upload parameters
    * @returns {object} Signature data
@@ -105,4 +163,8 @@ class CloudinaryService {
   }
 }
 
+// Export individual functions for direct use
 module.exports = CloudinaryService;
+module.exports.uploadVideo = CloudinaryService.uploadVideo;
+module.exports.uploadRawFile = CloudinaryService.uploadRawFile;
+module.exports.cleanupLocalFile = CloudinaryService.cleanupLocalFile;
