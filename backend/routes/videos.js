@@ -6,7 +6,6 @@ const fs = require('fs');
 const Avatar = require('../models/Avatar');
 const Video = require('../models/Video');
 const elevenLabsService = require('../services/elevenLabsService');
-const didService = require('../services/didService');
 
 const router = express.Router();
 
@@ -27,16 +26,7 @@ const generateAudio = async (text, voiceId, options = {}) => {
   }
 };
 
-// Helper function to generate video with D-ID
-const generateVideoWithDID = async (imageUrl, audioUrl, options = {}) => {
-  try {
-    const result = await didService.createTalkingVideo(imageUrl, audioUrl, options);
-    return result;
-  } catch (error) {
-    console.error('D-ID video generation error:', error);
-    throw new Error('Failed to generate video with D-ID');
-  }
-};
+// D-ID service removed - using RunwayML for all video generation
 
 // Helper function to generate video with Runway (fallback option)
 const generateVideoWithRunway = async (imageUrl, audioBuffer, duration) => {
@@ -229,7 +219,7 @@ router.post('/create-text-based', async (req, res) => {
 // POST /api/videos/create - Create new video
 router.post('/create', async (req, res) => {
   try {
-    const { avatarId, title, script, provider = 'did' } = req.body; // Default to D-ID
+    const { avatarId, title, script, provider = 'runway' } = req.body; // Default to RunwayML
     
     // Get user ID from auth or use dev mode
     let userId;
@@ -397,7 +387,7 @@ async function processTextBasedVideoGeneration(videoId, {
 }
 
 // Async function to handle video generation
-async function processVideoGeneration(videoId, avatar, script, provider = 'did') {
+async function processVideoGeneration(videoId, avatar, script, provider = 'runway') {
   try {
     // Update status to processing
     await Video.findByIdAndUpdate(videoId, {
@@ -428,29 +418,9 @@ async function processVideoGeneration(videoId, avatar, script, provider = 'did')
     // Clean up temporary file
     fs.unlinkSync(tempAudioPath);
 
-    // Step 3: Generate video based on provider
+    // Step 3: Generate video with RunwayML (only provider supported)
     let videoResult;
-    if (provider === 'did') {
-      console.log('Generating video with D-ID...');
-      videoResult = await generateVideoWithDID(avatar.imageUrl, audioUpload.secure_url, {
-        fluent: true,
-        padAudio: 0.1,
-        resultFormat: 'mp4',
-      });
-
-      // Update video with D-ID task ID
-      await Video.findByIdAndUpdate(videoId, {
-        runwayTaskId: videoResult.id, // Using this field for D-ID task ID as well
-        metadata: {
-          didTaskId: videoResult.id,
-          provider: 'did',
-        }
-      });
-
-      // Poll D-ID for completion (since they don't have webhooks by default)
-      pollDIDStatus(videoId, videoResult.id);
-
-    } else if (provider === 'runway') {
+    if (provider === 'runway') {
       console.log('Generating video with Runway...');
       const runwayTaskId = await generateVideoWithRunway(avatar.imageUrl, audioBuffer, 30);
 
@@ -472,98 +442,6 @@ async function processVideoGeneration(videoId, avatar, script, provider = 'did')
       processingCompletedAt: new Date(),
     });
   }
-}
-
-// Function to poll D-ID status
-async function pollDIDStatus(videoId, didTaskId, maxAttempts = 60, interval = 10000) {
-  let attempts = 0;
-  
-  const poll = async () => {
-    try {
-      attempts++;
-      const status = await didService.getVideoStatus(didTaskId);
-      
-      console.log(`D-ID status for ${didTaskId}: ${status.status} (attempt ${attempts})`);
-      
-      if (status.status === 'done') {
-        // Video completed successfully
-        const videoUrl = status.result_url;
-        
-        // Download and upload to Cloudinary
-        const response = await axios.get(videoUrl, { responseType: 'stream' });
-        
-        const uploadResult = await new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              resource_type: 'video',
-              folder: 'generated_videos',
-              public_id: `video_${videoId}`,
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          response.data.pipe(uploadStream);
-        });
-
-        // Update video record
-        await Video.findByIdAndUpdate(videoId, {
-          status: 'completed',
-          videoUrl: uploadResult.secure_url,
-          cloudinaryVideoId: uploadResult.public_id,
-          duration: uploadResult.duration,
-          fileSize: uploadResult.bytes,
-          resolution: {
-            width: uploadResult.width,
-            height: uploadResult.height,
-          },
-          processingCompletedAt: new Date(),
-        });
-
-        console.log(`Video generation completed for ${videoId}`);
-        
-      } else if (status.status === 'error' || status.status === 'rejected') {
-        // Video generation failed
-        await Video.findByIdAndUpdate(videoId, {
-          status: 'failed',
-          errorMessage: status.error?.description || 'Video generation failed',
-          processingCompletedAt: new Date(),
-        });
-        
-        console.error(`Video generation failed for ${videoId}: ${status.error?.description}`);
-        
-      } else if (attempts < maxAttempts && (status.status === 'created' || status.status === 'started')) {
-        // Still processing, continue polling
-        setTimeout(poll, interval);
-      } else {
-        // Max attempts reached
-        await Video.findByIdAndUpdate(videoId, {
-          status: 'failed',
-          errorMessage: 'Video generation timeout',
-          processingCompletedAt: new Date(),
-        });
-        
-        console.error(`Video generation timeout for ${videoId}`);
-      }
-      
-    } catch (error) {
-      console.error(`Error polling D-ID status for ${videoId}:`, error);
-      
-      if (attempts < maxAttempts) {
-        setTimeout(poll, interval);
-      } else {
-        await Video.findByIdAndUpdate(videoId, {
-          status: 'failed',
-          errorMessage: 'Failed to check video generation status',
-          processingCompletedAt: new Date(),
-        });
-      }
-    }
-  };
-  
-  // Start polling after a short delay
-  setTimeout(poll, 5000);
 }
 
 // POST /api/videos/runway-callback - Runway completion callback

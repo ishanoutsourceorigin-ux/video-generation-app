@@ -2,7 +2,6 @@ const express = require('express');
 const multer = require('multer');
 const authMiddleware = require('../middleware/auth');
 const elevenLabsService = require('../services/elevenLabsService');
-const didService = require('../services/didService');
 const CloudinaryService = require('../services/cloudinaryService');
 
 const router = express.Router();
@@ -150,19 +149,7 @@ router.get('/credits', authMiddleware, async (req, res) => {
       credits.elevenLabs = { error: 'Unable to fetch credits' };
     }
 
-    // Get D-ID credits
-    try {
-      const didCredits = await didService.getCredits();
-      credits.did = {
-        remaining: didCredits.remaining,
-        total: didCredits.total,
-        used: didCredits.total - didCredits.remaining,
-      };
-    } catch (error) {
-      console.warn('Failed to fetch D-ID credits:', error.message);
-      credits.did = { error: 'Unable to fetch credits' };
-    }
-
+    // D-ID service removed - only using RunwayML and ElevenLabs
     res.json({ credits });
 
   } catch (error) {
@@ -284,7 +271,6 @@ router.get('/api-status', authMiddleware, async (req, res) => {
   try {
     const status = {
       elevenLabs: 'unknown',
-      did: 'unknown',
       cloudinary: 'unknown',
     };
 
@@ -294,14 +280,6 @@ router.get('/api-status', authMiddleware, async (req, res) => {
       status.elevenLabs = 'connected';
     } catch (error) {
       status.elevenLabs = 'error';
-    }
-
-    // Test D-ID
-    try {
-      await didService.getCredits();
-      status.did = 'connected';
-    } catch (error) {
-      status.did = 'error';
     }
 
     // Test Cloudinary (basic check)

@@ -120,7 +120,7 @@ class ProjectCard extends StatelessWidget {
       default:
         iconData = Icons.video_library_outlined;
         iconColor = Colors.grey;
-        statusText = 'Not Ready';
+        statusText = 'Thumbnail Not Available';
     }
 
     return Container(
@@ -173,7 +173,7 @@ class ProjectCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Thumbnail
-          Container(
+            Container(
               height: thumbnailHeight,
               width: double.infinity,
               decoration: BoxDecoration(

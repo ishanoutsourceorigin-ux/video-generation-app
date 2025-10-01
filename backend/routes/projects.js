@@ -7,7 +7,6 @@ const Project = require('../models/Project');
 const Video = require('../models/Video');
 const Avatar = require('../models/Avatar');
 const RunwayService = require('../services/runwayService');
-const didService = require('../services/didService');
 const elevenLabsService = require('../services/elevenLabsService');
 
 // Create RunwayService instance
@@ -208,7 +207,7 @@ router.post('/create-avatar-based', async (req, res) => {
       resolution = 1080,
       duration,
       style = 'professional',
-      provider = 'did',
+      provider = 'runway',
     } = req.body;
 
     const userId = getUserId(req);
@@ -767,7 +766,7 @@ async function processTextBasedVideoGeneration(projectId, config) {
 }
 
 // Async function to handle avatar-based video generation
-async function processAvatarBasedVideoGeneration(projectId, avatar, script, provider = 'did') {
+async function processAvatarBasedVideoGeneration(projectId, avatar, script, provider = 'runway') {
   try {
     const project = await Project.findById(projectId);
     if (!project) {

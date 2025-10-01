@@ -3,6 +3,7 @@ import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Component/round_button.dart';
 import 'package:video_gen_app/Component/round_textfield.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
+import 'package:video_gen_app/Screens/Video/avatar_videos_screen.dart';
 
 class GenerateVideoScreen extends StatefulWidget {
   final Map<String, dynamic> avatar;
@@ -17,6 +18,22 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _scriptController = TextEditingController();
   bool _isGenerating = false;
+  int _selectedDuration = 5; // Default to 5 seconds
+  String _selectedAspectRatio = '9:16'; // Default to portrait for avatars
+
+  final List<Map<String, dynamic>> _durations = [
+    {'label': '5 seconds', 'value': 5},
+    {'label': '10 seconds', 'value': 10},
+  ];
+
+  final List<Map<String, dynamic>> _aspectRatios = [
+    {'label': 'Portrait (9:16) - 720x1280px', 'value': '9:16'},
+    {'label': 'Landscape (16:9) - 1280x720px', 'value': '16:9'},
+    {'label': 'Square (1:1) - 960x960px', 'value': '1:1'},
+    {'label': 'Standard (4:3) - 1104x832px', 'value': '4:3'},
+    {'label': 'Portrait Standard (3:4) - 832x1104px', 'value': '3:4'},
+    {'label': 'Ultra-wide (21:9) - 1584x672px', 'value': '21:9'},
+  ];
 
   @override
   void dispose() {
@@ -195,6 +212,117 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                 "Write the text that your AI avatar will speak in the video",
                 style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
               ),
+              const SizedBox(height: 24),
+
+              // Duration Selection
+              const Text(
+                "Video Duration",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.darkGreyColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.greyColor.withOpacity(0.3),
+                  ),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: _selectedDuration,
+                    isExpanded: true,
+                    dropdownColor: AppColors.darkGreyColor,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    icon: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.grey.shade400,
+                    ),
+                    onChanged: (int? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedDuration = newValue;
+                        });
+                      }
+                    },
+                    items: _durations.map<DropdownMenuItem<int>>((duration) {
+                      return DropdownMenuItem<int>(
+                        value: duration['value'] as int,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(duration['label'] as String),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Select video duration (RunwayML gen4_turbo supports 5 or 10 seconds)",
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+              ),
+              const SizedBox(height: 24),
+
+              // Aspect Ratio Selection
+              const Text(
+                "Video Aspect Ratio",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.darkGreyColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.greyColor.withOpacity(0.3),
+                  ),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedAspectRatio,
+                    isExpanded: true,
+                    dropdownColor: AppColors.darkGreyColor,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    icon: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.grey.shade400,
+                    ),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedAspectRatio = newValue;
+                        });
+                      }
+                    },
+                    items: _aspectRatios.map<DropdownMenuItem<String>>((ratio) {
+                      return DropdownMenuItem<String>(
+                        value: ratio['value'] as String,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            ratio['label'] as String,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Choose output resolution and aspect ratio for your avatar video",
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+              ),
               const SizedBox(height: 40),
 
               // Generate Button
@@ -212,11 +340,20 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Cancel Button
+              // View Generated Videos Button
               RoundButton(
-                title: "Cancel",
-                onPress: () => Navigator.pop(context),
-                bgColor: AppColors.greyColor.withOpacity(0.3),
+                title: "View Generated Videos",
+                onPress: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AvatarVideosScreen(),
+                    ),
+                  );
+                },
+                leadingIcon: Icons.video_library,
+                leadingIconColor: Colors.white,
+                bgColor: AppColors.darkGreyColor,
                 borderRadius: 12,
                 fontSize: 16,
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -314,21 +451,29 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
         avatarId: avatarId,
         title: _titleController.text.trim(),
         script: _scriptController.text.trim(),
+        duration: _selectedDuration,
+        aspectRatio: _selectedAspectRatio,
       );
 
       print("✅ Video generation started: $result");
 
       // Success
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
-            "Video generation started! You'll be notified when it's ready.",
+            "Avatar video generation started! You'll be notified when it's ready.",
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
+          duration: Duration(seconds: 4),
         ),
       );
-      Navigator.pop(context, true); // Return true to indicate success
+
+      print("🏠 Navigating to avatar videos screen...");
+      // Navigate to avatar videos screen (same as text video flow)
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const AvatarVideosScreen()),
+      );
     } catch (e) {
       print("❌ Error generating video: $e");
       _showError(e.toString().replaceFirst('Exception: ', ''));

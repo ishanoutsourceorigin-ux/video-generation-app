@@ -80,7 +80,7 @@ const videoSchema = new mongoose.Schema({
     voice: String, // Voice type for narration
     scriptLength: Number,
     estimatedDuration: Number,
-    provider: String, // 'did', 'runway', 'ai-text-generator', etc.
+    provider: String, // 'runway', 'ai-text-generator', etc.
     generationMethod: String, // Description of how video was generated
     voiceSettings: {
       stability: { type: Number, default: 0.5 },

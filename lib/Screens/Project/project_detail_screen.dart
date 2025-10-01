@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:video_gen_app/Component/video_player_dialog.dart';
+import 'package:video_gen_app/Component/download_progress_overlay.dart';
 import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
 import 'package:video_gen_app/Component/round_button.dart';
-import 'package:video_player/video_player.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -34,8 +33,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   void initState() {
     super.initState();
     print('🔍 ProjectDetailScreen init - projectId: ${widget.projectId}');
-    print('🔍 ProjectDetailScreen init - initialProject: ${widget.initialProject?.keys}');
-    
+    print(
+      '🔍 ProjectDetailScreen init - initialProject: ${widget.initialProject?.keys}',
+    );
+
     project = widget.initialProject;
     if (project != null) {
       _isLoading = false;
@@ -116,7 +117,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
 
   Future<void> _loadProjectDetails() async {
     print('🔍 Loading project details for ID: ${widget.projectId}');
-    
+
     if (widget.projectId.isEmpty) {
       print('❌ Empty project ID provided');
       setState(() {
@@ -125,7 +126,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       });
       return;
     }
-    
+
     try {
       final result = await ApiService.getProject(widget.projectId);
       print('✅ Project details loaded successfully');
@@ -189,8 +190,14 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       return;
     }
 
+    OverlayEntry? overlayEntry;
+
     try {
-      _showSnackbar('Starting download...');
+      // Show attractive download progress overlay
+      overlayEntry = OverlayEntry(
+        builder: (context) => const DownloadProgressOverlay(),
+      );
+      Overlay.of(context).insert(overlayEntry);
 
       // Get the video data
       final response = await http.get(Uri.parse(videoUrl));
@@ -221,6 +228,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         }
 
         if (directory == null) {
+          // Remove overlay on error
+          overlayEntry?.remove();
           _showSnackbar('Unable to access storage directory', isError: true);
           return;
         }
@@ -236,6 +245,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         final file = File(filePath);
         await file.writeAsBytes(response.bodyBytes);
 
+        // Remove overlay on success
+        overlayEntry?.remove();
+
         _showSnackbar(
           'Video downloaded successfully!\\nSaved to: ${directory.path}',
         );
@@ -247,12 +259,18 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
           });
         }
       } else {
+        // Remove overlay on error
+        overlayEntry?.remove();
+
         _showSnackbar(
           'Failed to download video (${response.statusCode})',
           isError: true,
         );
       }
     } catch (e) {
+      // Remove overlay on error
+      overlayEntry?.remove();
+
       _showSnackbar('Download failed: ${e.toString()}', isError: true);
       print('Download error: $e');
     }
@@ -719,6 +737,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                       size: 40,
                     ),
                   ),
+
+                  
                 ),
                 // Duration badge (if available)
                 Positioned(
@@ -1112,21 +1132,5 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       context: context,
       builder: (context) => VideoPlayerDialog(videoUrl: videoUrl),
     );
-  }
-
-  // Get estimated video file size based on duration and resolution
-  String _getVideoFileSize() {
-    try {
-      final duration = project!['configuration']?['duration'] ?? 8;
-      final resolution = project!['configuration']?['resolution'] ?? 720;
-
-      // Rough estimation: 720p = ~1MB per second, 1080p = ~2MB per second
-      double sizePerSecond = resolution >= 1080 ? 2.0 : 1.0;
-      double estimatedSize = duration * sizePerSecond;
-
-      return estimatedSize.toStringAsFixed(1);
-    } catch (e) {
-      return '~8.0';
-    }
   }
 }

@@ -160,6 +160,8 @@ class ApiService {
     required String avatarId,
     required String title,
     required String script,
+    int? duration,
+    String? aspectRatio,
   }) async {
     try {
       final headers = await _getHeaders();
@@ -167,10 +169,12 @@ class ApiService {
         'avatarId': avatarId,
         'title': title,
         'script': script,
+        if (duration != null) 'duration': duration,
+        if (aspectRatio != null) 'aspectRatio': aspectRatio,
       });
 
       final response = await http.post(
-        Uri.parse('$baseUrl/videos/create'),
+        Uri.parse('$baseUrl/avatar-videos/create'),
         headers: headers,
         body: body,
       );
@@ -585,15 +589,10 @@ class ApiService {
         'title': title,
         'script': script,
         'avatarId': avatarId,
-        'aspectRatio': aspectRatio ?? '9:16',
-        'resolution': resolution ?? 1080,
-        'duration': duration,
-        'style': style ?? 'professional',
-        'provider': provider ?? 'did',
       });
 
       final response = await http.post(
-        Uri.parse('$baseUrl/projects/create-avatar-based'),
+        Uri.parse('$baseUrl/avatar-videos/create'),
         headers: headers,
         body: body,
       );

@@ -1,6 +1,7 @@
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
 
 class ElevenLabsService {
   constructor() {
@@ -142,6 +143,105 @@ class ElevenLabsService {
     } catch (error) {
       console.error('ElevenLabs get usage error:', error.response?.data || error.message);
       throw new Error(`Failed to get usage statistics: ${error.response?.data?.detail?.message || error.message}`);
+    }
+  }
+
+  // Generate speech for avatar videos (with Cloudinary upload)
+  async generateSpeech(script, voiceId, options = {}) {
+    try {
+      console.log('🎙️ Generating speech for avatar video...');
+      console.log('📝 Script length:', script.length);
+      console.log('🗣️ Voice ID:', voiceId);
+
+      // Generate audio using text-to-speech
+      const audioBuffer = await this.textToSpeech(script, voiceId, {
+        stability: options.stability || 0.75,
+        similarityBoost: options.similarityBoost || 0.85,
+        style: options.style || 0.2,
+        useSpeakerBoost: true,
+        modelId: 'eleven_multilingual_v2' // Better for avatar videos
+      });
+
+      console.log('✅ Audio generated, uploading to Cloudinary...');
+
+      // Upload audio to Cloudinary
+      const timestamp = Date.now();
+      const cloudinaryResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: 'video', // Audio files are treated as video in Cloudinary
+            folder: 'avatar-audio',
+            public_id: `avatar_audio_${timestamp}`,
+            format: 'mp3',
+            overwrite: true
+          },
+          (error, result) => {
+            if (error) {
+              console.error('❌ Cloudinary upload error:', error);
+              reject(error);
+            } else {
+              console.log('✅ Audio uploaded to Cloudinary:', result.secure_url);
+              resolve(result);
+            }
+          }
+        );
+        
+        uploadStream.end(audioBuffer);
+      });
+
+      return {
+        success: true,
+        audioUrl: cloudinaryResult.secure_url,
+        duration: cloudinaryResult.duration || 8,
+        fileSize: cloudinaryResult.bytes,
+        publicId: cloudinaryResult.public_id
+      };
+
+    } catch (error) {
+      console.error('❌ Avatar speech generation error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Clone voice from Cloudinary URL (for avatar creation)
+  async cloneVoiceFromUrl(audioUrl, voiceName, description = '') {
+    try {
+      console.log('🎵 Cloning voice from URL:', audioUrl);
+      
+      // Download audio from Cloudinary
+      const audioResponse = await axios.get(audioUrl, {
+        responseType: 'stream'
+      });
+
+      // Create temporary file
+      const tempFilePath = `/tmp/voice_${Date.now()}.mp3`;
+      const writer = fs.createWriteStream(tempFilePath);
+      audioResponse.data.pipe(writer);
+
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+
+      // Clone voice using temporary file
+      const result = await this.cloneVoice(tempFilePath, voiceName, description);
+      
+      // Clean up temporary file
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (cleanupError) {
+        console.warn('⚠️ Failed to clean up temp file:', cleanupError.message);
+      }
+
+      console.log('✅ Voice cloned successfully:', result.voice_id);
+      return result;
+
+    } catch (error) {
+      console.error('❌ Voice cloning from URL error:', error);
+      throw new Error(`Failed to clone voice from URL: ${error.message}`);
     }
   }
 }

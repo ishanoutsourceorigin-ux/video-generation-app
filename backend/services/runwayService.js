@@ -769,24 +769,152 @@ class RunwayService {
     return ratioMap[aspectRatio] || '960:960'; // Default to square
   }
 
-  // Convert aspect ratio to VEO-3 specific format (only supports 2 ratios)
-  convertToVeo3Ratio(aspectRatio, resolution) {
-    // VEO-3 only supports these two ratios
-    const veo3RatioMap = {
-      '16:9': '1280:720',   // Landscape
-      '9:16': '720:1280',   // Portrait
-      '1:1': '1280:720',    // Square -> default to landscape
-      '4:3': '1280:720',    // Standard -> default to landscape
-      '3:4': '720:1280',    // Portrait standard -> portrait
-      '21:9': '1280:720'    // Ultra-wide -> default to landscape
+  // Convert aspect ratio to Gen-4 turbo specific format (supports 6 ratios)
+  convertToGen4Ratio(aspectRatio, resolution) {
+    // Gen-4 turbo supports these exact ratios as per documentation
+    const gen4RatioMap = {
+      '16:9': '1280:720',   // Landscape - 1280x720 px
+      '9:16': '720:1280',   // Portrait - 720x1280 px
+      '1:1': '960:960',     // Square - 960x960 px
+      '4:3': '1104:832',    // Standard - 1104x832 px
+      '3:4': '832:1104',    // Portrait standard - 832x1104 px
+      '21:9': '1584:672'    // Ultra-wide - 1584x672 px
     };
     
-    return veo3RatioMap[aspectRatio] || '1280:720'; // Default to landscape
+    return gen4RatioMap[aspectRatio] || '720:1280'; // Default to portrait for avatars
   }
 
   enhancePrompt(originalPrompt) {
     // Don't enhance anymore since we create short prompts in createShortPrompt
     return originalPrompt;
+  }
+
+  // Generate image-to-video with audio for avatar talking videos
+  async generateImageToVideoWithAudio(options) {
+    try {
+      console.log('🎭 === AVATAR IMAGE-TO-VIDEO GENERATION ===');
+      console.log('📸 Image URL:', options.imageUrl);
+      console.log('🎵 Audio URL:', options.audioUrl);
+      console.log('📐 Aspect Ratio:', options.aspectRatio);
+      console.log('🎬 Model:', options.model || 'gen3a_turbo');
+      console.log('⏱️ DURATION RECEIVED:', options.duration);
+
+      // Validate API key
+      if (!this.apiKey) {
+        throw new Error('Runway API key is not configured');
+      }
+2
+      // Convert aspect ratio to Gen-4 turbo format
+      const runwayRatio = this.convertToGen4Ratio(options.aspectRatio || '9:16', 720);
+
+      // Prepare the request payload for image-to-video (WITHOUT audio - RunwayML doesn't support promptAudio)
+      console.log('🔧 Creating payload with duration:', options.duration || 5);
+      const payload = {
+        model: options.model || 'gen4_turbo', // Use gen4_turbo for image-to-video generation
+        promptImage: options.imageUrl,
+        // promptAudio: options.audioUrl, // ❌ REMOVED: RunwayML doesn't support audio input for lip-sync
+        ratio: runwayRatio, // Gen-4 API uses 'ratio' not 'aspectRatio'
+        duration: options.duration || 5, // Use user-selected duration (5 or 10 seconds for gen4_turbo)
+        promptText: 'A person speaking naturally with realistic facial expressions and mouth movements',
+        seed: Math.floor(Math.random() * 1000000),
+        watermark: false,
+        enhance_prompt: false // We want exact control for talking heads
+      };
+
+      console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+
+      // Make API request
+      const response = await axios.post(
+        `${this.baseUrl}/v1/image_to_video`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'X-Runway-Version': '2024-11-06',
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
+        }
+      );
+
+      console.log('✅ Avatar video generation request submitted');
+      console.log('🆔 Task ID:', response.data.id);
+
+      // Poll for completion
+      const result = await this.pollTaskCompletion(response.data.id);
+      
+      // Note: RunwayML generated video without audio - audio overlay would need to be done separately
+      // For now, returning the silent video. Audio can be overlaid in post-processing.
+      return {
+        success: true,
+        taskId: response.data.id,
+        videoUrl: result.output?.[0] || result.artifacts?.[0]?.url,
+        audioUrl: options.audioUrl, // Pass through the audio URL for later processing
+        status: result.status,
+        note: 'Video generated without lip-sync. Audio overlay needed for complete avatar video.'
+      };
+
+    } catch (error) {
+      console.error('❌ Avatar image-to-video generation error:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message
+      };
+    }
+  }
+
+  // Enhanced polling for avatar video tasks
+  async pollTaskCompletion(taskId, maxAttempts = 60) {
+    console.log(`🔄 Starting polling for avatar video task: ${taskId}`);
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      try {
+        attempts++;
+        console.log(`🔍 Polling attempt ${attempts}/${maxAttempts} for task ${taskId}`);
+
+        const response = await axios.get(
+          `${this.baseUrl}/v1/tasks/${taskId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+              'X-Runway-Version': '2024-11-06'
+            }
+          }
+        );
+
+        const taskData = response.data;
+        console.log(`📊 Task status: ${taskData.status}`);
+
+        if (taskData.status === 'SUCCEEDED') {
+          console.log('🎉 Avatar video generation completed successfully!');
+          return taskData;
+        } else if (taskData.status === 'FAILED') {
+          console.error('❌ Avatar video generation failed:', taskData.failure_reason);
+          throw new Error(taskData.failure_reason || 'Avatar video generation failed');
+        } else if (taskData.status === 'RUNNING' || taskData.status === 'PENDING') {
+          // Continue polling
+          console.log(`⏳ Task still ${taskData.status.toLowerCase()}, waiting...`);
+          await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second interval
+        } else {
+          console.warn(`⚠️ Unknown task status: ${taskData.status}`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+      } catch (error) {
+        console.error(`❌ Polling error (attempt ${attempts}):`, error.message);
+        if (error.response) {
+          console.error(`❌ Error response status: ${error.response.status}`);
+          console.error(`❌ Error response data:`, error.response.data);
+        }
+        if (attempts >= maxAttempts) {
+          throw new Error(`Polling timeout after ${maxAttempts} attempts`);
+        }
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait longer on error
+      }
+    }
+
+    throw new Error(`Avatar video generation timeout after ${maxAttempts} attempts`);
   }
 }
 
