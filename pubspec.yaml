@@ -24,14 +24,18 @@ dependencies:
   file_picker: ^8.1.2
   http: ^1.2.2
   video_player: ^2.10.0
+  chewie: ^1.13.0
   path_provider: ^2.1.4
   device_info_plus: ^10.1.2
+  permission_handler: ^11.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
@@ -56,13 +60,11 @@ flutter:
     - images/money-icon.png
     - images/project-icon.png
     - images/completed-icon.png
-    - images/project-card.png
     - images/download-icon.png
     - images/delete-icon.png
     - images/text-icon.png
     - images/avatar-icon.png
-    - images/text-icon.png
-    - images/avatar-icon.png
+    - images/splash-logo.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
@@ -90,3 +92,23 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Flutter Launcher Icons Configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "images/logo.png"
+  adaptive_icon_background: "#16162D"
+  adaptive_icon_foreground: "images/logo.png"
+  remove_alpha_ios: true
+
+# Flutter Native Splash Configuration
+flutter_native_splash:
+  color: "#16162D"
+  image: "images/logo.png"
+  android: true
+  ios: true
+  web: false
+  android_gravity: center
+  ios_content_mode: center
+  fullscreen: true

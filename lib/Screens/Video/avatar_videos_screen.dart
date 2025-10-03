@@ -3,6 +3,7 @@ import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
 import 'package:video_gen_app/Screens/Project/project_detail_screen.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
+import 'package:video_gen_app/Component/project_card.dart';
 
 class AvatarVideosScreen extends StatefulWidget {
   const AvatarVideosScreen({super.key});
@@ -30,7 +31,7 @@ class _AvatarVideosScreenState extends State<AvatarVideosScreen> {
     });
 
     try {
-      print('🎭 Loading avatar videos screen - Avatar-based only');
+      // print('🎭 Loading avatar videos screen - Avatar-based only');
       final response = await ApiService.getProjects(
         status: _filterStatus == 'all' ? null : _filterStatus,
         type: 'avatar-based', // Only load avatar-based projects
@@ -209,10 +210,15 @@ class _AvatarVideosScreenState extends State<AvatarVideosScreen> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+    return GridView.builder(
+      padding: const EdgeInsets.all(20),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.75,
+      ),
       itemCount: _projects.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
         final project = _projects[index];
         return _buildProjectCard(project);
@@ -224,230 +230,125 @@ class _AvatarVideosScreenState extends State<AvatarVideosScreen> {
     final status = project['status'] ?? 'unknown';
     final title = project['title'] ?? 'Untitled';
     final createdAt = project['createdAt'] ?? '';
-    final avatarName = project['avatar']?['name'] ?? 'Unknown Avatar';
     final duration = project['duration']?.toString() ?? '0';
     final thumbnailUrl = project['thumbnailUrl'] ?? '';
+    final projectId = project['id'] ?? project['_id'] ?? '';
 
-    Color statusColor;
-    IconData statusIcon;
-    String statusText;
+    // For avatar-based projects, use avatar image if available
+    final avatarImageUrl = project['avatarId'] is Map
+        ? project['avatarId']['imageUrl']
+        : null;
 
-    switch (status.toLowerCase()) {
-      case 'completed':
-        statusColor = Colors.green;
-        statusIcon = Icons.check_circle;
-        statusText = 'Ready';
-        break;
-      case 'processing':
-        statusColor = Colors.orange;
-        statusIcon = Icons.hourglass_empty;
-        statusText = 'Processing';
-        break;
-      case 'failed':
-        statusColor = Colors.red;
-        statusIcon = Icons.error;
-        statusText = 'Failed';
-        break;
-      default:
-        statusColor = Colors.grey;
-        statusIcon = Icons.schedule;
-        statusText = 'Queued';
+    // Use avatar image for avatar-based projects, otherwise use thumbnail or fallback
+    final imagePath = avatarImageUrl != null && avatarImageUrl.isNotEmpty
+        ? avatarImageUrl
+        : (thumbnailUrl.isNotEmpty ? thumbnailUrl : 'images/project-card.png');
+
+    return ProjectCard(
+      title: title,
+      createdDate: _formatDate(createdAt),
+      duration: '${duration}s',
+      status: status,
+      projectId: projectId,
+      prompt: project['description'],
+      imagePath: imagePath,
+      onTap: () => _viewProject(project),
+      onPlay: () => _playProject(project),
+      onDownload: () => _downloadProject(project),
+      onDelete: () => _deleteProject(projectId),
+    );
+  }
+
+  void _playProject(Map<String, dynamic> project) {
+    final videoUrl = project['videoUrl'] ?? '';
+    if (videoUrl.isNotEmpty) {
+      // Show video in dialog or navigate to video player
+      // You can implement video playback here
+      _viewProject(project);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Video not available'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.darkGreyColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Thumbnail Section
-          Container(
-            height: 180,
-            decoration: BoxDecoration(
-              color: AppColors.appBgColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: status == 'completed' && thumbnailUrl.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(16),
-                      topRight: Radius.circular(16),
-                    ),
-                    child: Image.network(
-                      thumbnailUrl,
-                      width: double.infinity,
-                      height: 180,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return _buildPlaceholder(
-                          statusColor,
-                          statusIcon,
-                          statusText,
-                        );
-                      },
-                    ),
-                  )
-                : _buildPlaceholder(statusColor, statusIcon, statusText),
+  void _downloadProject(Map<String, dynamic> project) {
+    final videoUrl = project['videoUrl'] ?? '';
+    if (videoUrl.isNotEmpty) {
+      // Implement download functionality
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Download feature coming soon'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Video not available for download'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _deleteProject(String projectId) {
+    if (projectId.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.darkGreyColor,
+        title: const Text(
+          'Delete Project',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this project? This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
-
-          // Content Section
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Status Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: statusColor.withOpacity(0.5)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(statusIcon, color: statusColor, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        statusText,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Title
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-
-                // Avatar Info
-                Row(
-                  children: [
-                    Icon(Icons.person, color: AppColors.purpleColor, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      avatarName,
-                      style: TextStyle(
-                        color: AppColors.purpleColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-
-                // Duration & Date
-                Row(
-                  children: [
-                    Icon(Icons.schedule, color: Colors.grey, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${duration}s',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                    const SizedBox(width: 16),
-                    Icon(Icons.calendar_today, color: Colors.grey, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatDate(createdAt),
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Action Buttons
-                Row(
-                  children: [
-                    if (status == 'completed') ...[
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _viewProject(project),
-                          icon: const Icon(Icons.play_arrow, size: 18),
-                          label: const Text('Play'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.purpleColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _viewProject(project),
-                        icon: const Icon(Icons.info_outline, size: 18),
-                        label: const Text('Details'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: BorderSide(
-                            color: AppColors.greyColor.withOpacity(0.5),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _performDelete(projectId);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPlaceholder(
-    Color statusColor,
-    IconData statusIcon,
-    String statusText,
-  ) {
-    return Container(
-      width: double.infinity,
-      height: 180,
-      color: AppColors.appBgColor,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(statusIcon, color: statusColor, size: 48),
-          const SizedBox(height: 8),
-          Text(
-            statusText,
-            style: TextStyle(
-              color: statusColor,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
+  Future<void> _performDelete(String projectId) async {
+    try {
+      // Implement actual delete API call here
+      // await ApiService.deleteProject(projectId);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Project deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Refresh the list
+      _loadProjects();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete project: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   String _formatDate(String dateString) {

@@ -10,6 +10,7 @@ class ProjectModel {
   final DateTime updatedAt;
   final Map<String, dynamic>? metadata;
   final String? avatarId;
+  final String? avatarImageUrl; // For avatar-based projects
   final int duration; // in seconds
   final String aspectRatio;
   final int resolution;
@@ -26,6 +27,7 @@ class ProjectModel {
     required this.updatedAt,
     this.metadata,
     this.avatarId,
+    this.avatarImageUrl,
     required this.duration,
     this.aspectRatio = '720:1280',
     this.resolution = 1080,
@@ -67,6 +69,18 @@ class ProjectModel {
 
   // Factory constructor from JSON
   factory ProjectModel.fromJson(Map<String, dynamic> json) {
+    // Handle populated avatarId (can be either String or Map)
+    String? avatarIdValue;
+    String? avatarImageUrlValue;
+    if (json['avatarId'] != null) {
+      if (json['avatarId'] is String) {
+        avatarIdValue = json['avatarId'];
+      } else if (json['avatarId'] is Map<String, dynamic>) {
+        avatarIdValue = json['avatarId']['_id'] ?? json['avatarId']['id'];
+        avatarImageUrlValue = json['avatarId']['imageUrl'];
+      }
+    }
+
     return ProjectModel(
       id: json['_id'] ?? json['id'] ?? '',
       title: json['title'] ?? 'Untitled Project',
@@ -82,10 +96,15 @@ class ProjectModel {
           ? DateTime.parse(json['updatedAt'])
           : DateTime.now(),
       metadata: json['metadata'],
-      avatarId: json['avatarId'],
-      duration: json['duration'] ?? 30,
-      aspectRatio: json['aspectRatio'] ?? json['configuration']?['aspectRatio'] ?? '720:1280',
-      resolution: json['resolution'] ?? 1080,
+      avatarId: avatarIdValue,
+      avatarImageUrl: avatarImageUrlValue,
+      duration: json['duration'] ?? json['configuration']?['duration'] ?? 30,
+      aspectRatio:
+          json['aspectRatio'] ??
+          json['configuration']?['aspectRatio'] ??
+          '720:1280',
+      resolution:
+          json['resolution'] ?? json['configuration']?['resolution'] ?? 1080,
     );
   }
 

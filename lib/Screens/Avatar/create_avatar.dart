@@ -6,6 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:video_gen_app/Services/Api/api_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
 
 class CreateAvatar extends StatefulWidget {
   const CreateAvatar({super.key});
@@ -18,16 +21,25 @@ class _CreateAvatarState extends State<CreateAvatar> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _professionController = TextEditingController();
   String _selectedGender = 'Male';
-  String _selectedStyle = 'Professional';
   File? _selectedImage;
   File? _selectedVoice;
   final ImagePicker _picker = ImagePicker();
   bool _isCreating = false;
 
+  // Voice recording variables
+  bool _isRecording = false;
+  bool _isHolding = false;
+  Duration _recordDuration = Duration.zero;
+  Timer? _timer;
+  String _voiceSource = 'none'; // 'none', 'recorded', 'uploaded'
+  OverlayEntry? _recordingOverlay;
+
   @override
   void dispose() {
     _nameController.dispose();
     _professionController.dispose();
+    _timer?.cancel();
+    _hideRecordingOverlay();
     super.dispose();
   }
 
@@ -136,6 +148,49 @@ class _CreateAvatarState extends State<CreateAvatar> {
                     "Tap to change photo",
                     style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
                   ),
+                )
+              else
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.blueColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.blueColor.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.lightbulb_outline,
+                          color: AppColors.blueColor,
+                          size: 20,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Tip for Best Results",
+                          style: TextStyle(
+                            color: AppColors.blueColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Upload a clear, front-facing photo with good lighting for best AI avatar quality.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey.shade300,
+                            fontSize: 11,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               const SizedBox(height: 32),
 
@@ -181,7 +236,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
               ),
               const SizedBox(height: 24),
 
-              // Voice Upload Section
+              // Voice Recording/Upload Section
               const Text(
                 "Voice Sample",
                 style: TextStyle(
@@ -191,61 +246,283 @@ class _CreateAvatarState extends State<CreateAvatar> {
                 ),
               ),
               const SizedBox(height: 8),
-              GestureDetector(
-                onTap: _pickVoice,
-                child: Container(
+
+              // Voice options row
+              IntrinsicHeight(
+                child: Row(
+                  children: [
+                    // Record Voice Button
+                    Expanded(
+                      child: GestureDetector(
+                        onTapDown: (details) {
+                          print("👆 Tap down detected");
+                          setState(() {
+                            _isHolding = true;
+                          });
+                          if (!_isRecording) {
+                            _startRecording();
+                          }
+                        },
+                        onTapUp: (details) {
+                          print("👆 Tap up detected");
+                          setState(() {
+                            _isHolding = false;
+                          });
+                          if (_isRecording) {
+                            _stopRecording();
+                          }
+                        },
+                        onTapCancel: () {
+                          print("👆 Tap cancelled");
+                          setState(() {
+                            _isHolding = false;
+                          });
+                          if (_isRecording) {
+                            _stopRecording();
+                          }
+                        },
+                        child: Container(
+                          height: 65,
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _isRecording
+                                ? Colors.red.withOpacity(0.1)
+                                : (_isHolding
+                                      ? AppColors.purpleColor.withOpacity(0.1)
+                                      : AppColors.darkGreyColor),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _isRecording
+                                  ? Colors.red
+                                  : (_voiceSource == 'recorded'
+                                        ? AppColors.purpleColor
+                                        : AppColors.greyColor.withOpacity(0.3)),
+                              width: _isRecording || _voiceSource == 'recorded'
+                                  ? 2
+                                  : 1,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                flex: 3,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    // Pulsing animation for recording
+                                    if (_isRecording)
+                                      AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 1000,
+                                        ),
+                                        width: 32,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.red.withOpacity(0.2),
+                                        ),
+                                      ),
+                                    AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      transform: _isHolding
+                                          ? (Matrix4.identity()..scale(1.05))
+                                          : Matrix4.identity(),
+                                      child: Icon(
+                                        _isRecording
+                                            ? Icons.mic
+                                            : Icons.keyboard_voice,
+                                        color: _isRecording
+                                            ? Colors.red
+                                            : (_voiceSource == 'recorded'
+                                                  ? AppColors.purpleColor
+                                                  : Colors.grey),
+                                        size: _isRecording ? 20 : 18,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Flexible(
+                                flex: 1,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    _isRecording
+                                        ? "${_recordDuration.inSeconds}s"
+                                        : (_voiceSource == 'recorded'
+                                              ? "Recorded"
+                                              : "Hold"),
+                                    style: TextStyle(
+                                      color: _isRecording
+                                          ? Colors.red
+                                          : (_voiceSource == 'recorded'
+                                                ? AppColors.purpleColor
+                                                : Colors.grey),
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // Upload Voice Button
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _pickVoice,
+                        child: Container(
+                          height: 65,
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.darkGreyColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _voiceSource == 'uploaded'
+                                  ? AppColors.purpleColor
+                                  : AppColors.greyColor.withOpacity(0.3),
+                              width: _voiceSource == 'uploaded' ? 2 : 1,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                flex: 3,
+                                child: Icon(
+                                  Icons.upload_file,
+                                  color: _voiceSource == 'uploaded'
+                                      ? AppColors.purpleColor
+                                      : Colors.grey,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Flexible(
+                                flex: 1,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    _voiceSource == 'uploaded'
+                                        ? "Done"
+                                        : "Upload",
+                                    style: TextStyle(
+                                      color: _voiceSource == 'uploaded'
+                                          ? AppColors.purpleColor
+                                          : Colors.grey,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // Voice file name or recording info
+              if (_selectedVoice != null)
+                Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.darkGreyColor,
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.purpleColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: _selectedVoice != null
-                          ? AppColors.purpleColor
-                          : AppColors.greyColor.withOpacity(0.3),
-                      width: _selectedVoice != null ? 2 : 1,
+                      color: AppColors.purpleColor.withOpacity(0.3),
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        _selectedVoice != null ? Icons.audiotrack : Icons.mic,
-                        color: _selectedVoice != null
-                            ? AppColors.purpleColor
-                            : Colors.grey,
-                        size: 24,
+                        Icons.audiotrack,
+                        color: AppColors.purpleColor,
+                        size: 16,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _selectedVoice != null
-                              ? "Voice sample: ${_selectedVoice!.path.split('/').last}"
-                              : "Upload voice sample (MP3, WAV, M4A)",
-                          style: TextStyle(
-                            color: _selectedVoice != null
-                                ? Colors.white
-                                : Colors.grey,
-                            fontSize: 14,
+                          _voiceSource == 'recorded'
+                              ? "Voice recorded (${_recordDuration.inSeconds}s)"
+                              : "File: ${_selectedVoice!.path.split('/').last}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
                           ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
-                      if (_selectedVoice != null)
-                        GestureDetector(
-                          onTap: () => setState(() => _selectedVoice = null),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.red,
-                            size: 20,
-                          ),
+                      GestureDetector(
+                        onTap: () => setState(() {
+                          _selectedVoice = null;
+                          _voiceSource = 'none';
+                          _recordDuration = Duration.zero;
+                        }),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.red,
+                          size: 16,
                         ),
+                      ),
                     ],
                   ),
                 ),
-              ),
+
               const SizedBox(height: 8),
-              Text(
-                "Upload a 10-30 second clear audio sample for voice cloning",
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.blueColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: AppColors.blueColor.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: AppColors.blueColor,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "Hold record button for 3-30s or upload audio (MP3, WAV, M4A)",
+                        style: TextStyle(
+                          color: Colors.grey.shade300,
+                          fontSize: 9,
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -263,23 +540,6 @@ class _CreateAvatarState extends State<CreateAvatar> {
                 value: _selectedGender,
                 items: ['Male', 'Female', 'Other'],
                 onChanged: (value) => setState(() => _selectedGender = value!),
-              ),
-              const SizedBox(height: 24),
-
-              // Style Selection
-              const Text(
-                "Avatar Style",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _buildDropdown(
-                value: _selectedStyle,
-                items: ['Professional', 'Casual', 'Formal', 'Creative'],
-                onChanged: (value) => setState(() => _selectedStyle = value!),
               ),
               const SizedBox(height: 40),
 
@@ -392,6 +652,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
 
         setState(() {
           _selectedVoice = file;
+          _voiceSource = 'uploaded';
         });
       }
     } catch (e) {
@@ -399,10 +660,116 @@ class _CreateAvatarState extends State<CreateAvatar> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error picking voice file: $e"),
-
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      // Request microphone permission
+      final permission = await Permission.microphone.request();
+      if (!permission.isGranted) {
+        _showError("Microphone permission required for voice recording");
+        return;
+      }
+
+      print("🎙️ Starting recording...");
+
+      setState(() {
+        _isRecording = true;
+        _isHolding = true;
+        _recordDuration = Duration.zero;
+      });
+
+      // Start timer
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (mounted && _isRecording) {
+          setState(() {
+            _recordDuration = Duration(seconds: timer.tick);
+          });
+
+          // Auto stop after 30 seconds
+          if (_recordDuration.inSeconds >= 30) {
+            _stopRecording();
+          }
+        }
+      });
+
+      // Show recording overlay
+      _showRecordingOverlay();
+
+      // Haptic feedback
+      try {
+        // Add vibration feedback if available
+      } catch (e) {
+        // Ignore if haptic feedback not available
+      }
+    } catch (e) {
+      print("Error starting recording: $e");
+      _showError("Failed to start recording: $e");
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    if (!_isRecording) return;
+
+    try {
+      print("🛑 Stopping recording... Duration: ${_recordDuration.inSeconds}s");
+
+      _timer?.cancel();
+      _hideRecordingOverlay();
+
+      setState(() {
+        _isRecording = false;
+        _isHolding = false;
+      });
+
+      // Check if recording was long enough (simulate recording)
+      if (_recordDuration.inSeconds >= 3) {
+        // Create a dummy file to simulate recording
+        final directory = await getTemporaryDirectory();
+        final file = File(
+          '${directory.path}/recorded_voice_${DateTime.now().millisecondsSinceEpoch}.m4a',
+        );
+        await file.writeAsString(
+          'simulated_recording_data_${_recordDuration.inSeconds}s',
+        );
+
+        setState(() {
+          _selectedVoice = file;
+          _voiceSource = 'recorded';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Text("Voice recorded (${_recordDuration.inSeconds}s)"),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else if (_recordDuration.inSeconds > 0 &&
+          _recordDuration.inSeconds < 3) {
+        _showError("Recording too short! Hold for at least 3 seconds.");
+        setState(() {
+          _recordDuration = Duration.zero;
+        });
+      }
+    } catch (e) {
+      print("Error stopping recording: $e");
+      _showError("Failed to stop recording: $e");
+      setState(() {
+        _isRecording = false;
+        _isHolding = false;
+        _recordDuration = Duration.zero;
+      });
     }
   }
 
@@ -437,7 +804,6 @@ class _CreateAvatarState extends State<CreateAvatar> {
       print("📝 Name: ${_nameController.text.trim()}");
       print("💼 Profession: ${_professionController.text.trim()}");
       print("👤 Gender: $_selectedGender");
-      print("🎨 Style: $_selectedStyle");
       print("📸 Image path: ${_selectedImage?.path}");
       print("🎵 Voice path: ${_selectedVoice?.path}");
 
@@ -445,7 +811,6 @@ class _CreateAvatarState extends State<CreateAvatar> {
         name: _nameController.text.trim(),
         profession: _professionController.text.trim(),
         gender: _selectedGender,
-        style: _selectedStyle,
         imageFile: _selectedImage!,
         voiceFile: _selectedVoice!,
       );
@@ -472,6 +837,73 @@ class _CreateAvatarState extends State<CreateAvatar> {
         _isCreating = false;
       });
     }
+  }
+
+  void _showRecordingOverlay() {
+    _hideRecordingOverlay(); // Remove any existing overlay
+
+    _recordingOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).size.height * 0.3,
+        left: 0,
+        right: 0,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 40),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.red, width: 2),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  child: Icon(Icons.mic, color: Colors.red, size: 40),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Recording...",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                StreamBuilder(
+                  stream: Stream.periodic(const Duration(seconds: 1)),
+                  builder: (context, snapshot) => Text(
+                    "${_recordDuration.inSeconds}s",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Release to stop recording",
+                  style: TextStyle(color: Colors.grey.shade300, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_recordingOverlay!);
+  }
+
+  void _hideRecordingOverlay() {
+    _recordingOverlay?.remove();
+    _recordingOverlay = null;
   }
 
   void _showError(String message) {

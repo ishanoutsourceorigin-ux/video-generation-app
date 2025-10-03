@@ -7,6 +7,7 @@ class ProjectCard extends StatelessWidget {
   final String imagePath;
   final String? status;
   final String? projectId;
+  final String? prompt; // User's prompt/description
   final VoidCallback onPlay;
   final VoidCallback onDownload;
   final VoidCallback onDelete;
@@ -20,6 +21,7 @@ class ProjectCard extends StatelessWidget {
     required this.imagePath,
     this.status,
     this.projectId,
+    this.prompt,
     required this.onPlay,
     required this.onDownload,
     required this.onDelete,
@@ -269,28 +271,28 @@ class ProjectCard extends StatelessWidget {
                             const SizedBox(height: 6),
                           ],
                           // Duration badge
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isTablet ? 10 : 8,
-                              vertical: isTablet ? 6 : 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.8),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              duration,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: dateFontSize,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
+                          // Container(
+                          //   padding: EdgeInsets.symmetric(
+                          //     horizontal: isTablet ? 10 : 8,
+                          //     vertical: isTablet ? 6 : 4,
+                          //   ),
+                          //   decoration: BoxDecoration(
+                          //     color: Colors.black.withOpacity(0.8),
+                          //     borderRadius: BorderRadius.circular(20),
+                          //     border: Border.all(
+                          //       color: Colors.white.withOpacity(0.2),
+                          //       width: 1,
+                          //     ),
+                          //   ),
+                          //   child: Text(
+                          //     duration,
+                          //     style: TextStyle(
+                          //       color: Colors.white,
+                          //       fontSize: dateFontSize,
+                          //       fontWeight: FontWeight.w600,
+                          //     ),
+                          //   ),
+                          // ),
                         ],
                       ),
                     ),
@@ -320,14 +322,14 @@ class ProjectCard extends StatelessWidget {
                   Row(
                     children: [
                       Icon(
-                        Icons.access_time,
+                        Icons.text_snippet_outlined,
                         color: Colors.grey.shade500,
                         size: dateFontSize + 2,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          "Created $createdDate",
+                          prompt ?? "No prompt available",
                           style: TextStyle(
                             color: Colors.grey.shade400,
                             fontSize: dateFontSize,

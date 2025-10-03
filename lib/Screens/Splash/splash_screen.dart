@@ -29,39 +29,35 @@ class _SplashScreenState extends State<SplashScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Logo Image
-              ClipOval(
-                child: Image.asset(
-                  "images/logo.png",
-                  width: 120,
-                  height: 120,
-                  fit: BoxFit.cover,
-                ),
+              Padding(
+                padding: const EdgeInsets.all(60),
+                child: Image.asset("images/splash-logo.png", fit: BoxFit.cover),
               ),
 
-              const SizedBox(height: 50),
+              // const SizedBox(height: 50),
 
-              // App Name
-              const Text(
-                'CloneX',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 38,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                ),
-              ),
+              // // App Name
+              // const Text(
+              //   'CloneX',
+              //   style: TextStyle(
+              //     color: Colors.white,
+              //     fontSize: 38,
+              //     fontWeight: FontWeight.bold,
+              //     letterSpacing: 1,
+              //   ),
+              // ),
 
-              // Tagline
-              const Text(
-                'Your Digital Twin, Powered by AI',
-                style: TextStyle(
-                  color: Color(0xFF9CA3AF), // Light gray
-                  fontSize: 18,
-                  fontWeight: FontWeight.w400,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 40),
+              // // Tagline
+              // const Text(
+              //   'Your Digital Twin, Powered by AI',
+              //   style: TextStyle(
+              //     color: Color(0xFF9CA3AF), // Light gray
+              //     fontSize: 18,
+              //     fontWeight: FontWeight.w400,
+              //   ),
+              //   textAlign: TextAlign.center,
+              // ),
+              // const SizedBox(height: 40),
 
               // Get Started Button
               // Container(

@@ -3,10 +3,11 @@ import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
 import 'package:video_gen_app/Component/project_card.dart';
 import 'package:video_gen_app/Component/round_button.dart';
-import 'package:video_gen_app/Component/video_player_dialog.dart';
+import 'package:video_gen_app/Component/chewie_video_dialog.dart';
 import 'package:video_gen_app/Component/download_progress_overlay.dart';
 import 'package:video_gen_app/Models/project_model.dart';
 import 'package:video_gen_app/Services/project_service.dart';
+import 'package:video_gen_app/Services/Api/api_service.dart';
 import 'package:video_gen_app/Screens/Video/create_video.dart';
 import 'package:video_gen_app/Screens/Project/project_detail_screen.dart';
 import 'package:http/http.dart' as http;
@@ -48,17 +49,68 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
     try {
       print('📂 Loading all projects (text-based + avatar)');
-      final projects = await ProjectService.fetchProjects();
-      print('🎯 ProjectService returned ${projects.length} projects');
+
+      // Load both text-based and avatar-based projects
+      final textBasedResponse = await ApiService.getProjects(
+        type: 'text-based',
+        limit: 100,
+        page: 1,
+      );
+
+      final avatarBasedResponse = await ApiService.getProjects(
+        type: 'avatar-based',
+        limit: 100,
+        page: 1,
+      );
+
+      final List<ProjectModel> allProjects = [];
+
+      // Process text-based projects
+      if (textBasedResponse['projects'] != null) {
+        final List<dynamic> textProjects =
+            textBasedResponse['projects'] as List<dynamic>;
+        print('📝 Found ${textProjects.length} text-based projects');
+        for (var json in textProjects) {
+          try {
+            allProjects.add(ProjectModel.fromJson(json));
+          } catch (e) {
+            print('❌ Error parsing text-based project: $e');
+            continue;
+          }
+        }
+      }
+
+      // Process avatar-based projects
+      if (avatarBasedResponse['projects'] != null) {
+        final List<dynamic> avatarProjects =
+            avatarBasedResponse['projects'] as List<dynamic>;
+        print('🎭 Found ${avatarProjects.length} avatar-based projects');
+        for (var json in avatarProjects) {
+          try {
+            // print('🔍 Avatar project JSON: $json');
+            allProjects.add(ProjectModel.fromJson(json));
+          } catch (e) {
+            print('❌ Error parsing avatar-based project: $e');
+            print('🔍 Failed project JSON: $json');
+            continue;
+          }
+        }
+      }
+
+      // Sort by creation date (newest first)
+      allProjects.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      print('🎯 Total projects loaded: ${allProjects.length}');
 
       if (mounted) {
         setState(() {
-          _projects = projects;
-          _filteredProjects = _filterProjects(projects);
+          _projects = allProjects;
+          _filteredProjects = _filterProjects(allProjects);
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('❌ Error loading projects: $e');
       if (mounted) {
         setState(() {
           _errorMessage = e.toString();
@@ -107,12 +159,60 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     if (!mounted) return;
 
     try {
-      final projects = await ProjectService.fetchProjects(forceRefresh: true);
+      // Load both text-based and avatar-based projects
+      final textBasedResponse = await ApiService.getProjects(
+        type: 'text-based',
+        limit: 100,
+        page: 1,
+      );
+
+      final avatarBasedResponse = await ApiService.getProjects(
+        type: 'avatar-based',
+        limit: 100,
+        page: 1,
+      );
+
+      final List<ProjectModel> allProjects = [];
+
+      // Process text-based projects
+      if (textBasedResponse['projects'] != null) {
+        final List<dynamic> textProjects =
+            textBasedResponse['projects'] as List<dynamic>;
+        for (var json in textProjects) {
+          try {
+            allProjects.add(ProjectModel.fromJson(json));
+          } catch (e) {
+            print('❌ Error parsing text-based project: $e');
+            continue;
+          }
+        }
+      }
+
+      // Process avatar-based projects
+      if (avatarBasedResponse['projects'] != null) {
+        final List<dynamic> avatarProjects =
+            avatarBasedResponse['projects'] as List<dynamic>;
+        print(
+          '🔄 Refresh: Found ${avatarProjects.length} avatar-based projects',
+        );
+        for (var json in avatarProjects) {
+          try {
+            allProjects.add(ProjectModel.fromJson(json));
+          } catch (e) {
+            print('❌ Refresh: Error parsing avatar-based project: $e');
+            print('🔍 Refresh: Failed project JSON: $json');
+            continue;
+          }
+        }
+      }
+
+      // Sort by creation date (newest first)
+      allProjects.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       if (mounted) {
         setState(() {
-          _projects = projects;
-          _filteredProjects = _filterProjects(projects);
+          _projects = allProjects;
+          _filteredProjects = _filterProjects(allProjects);
           _errorMessage = null;
         });
       }
@@ -169,7 +269,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       // Open video player dialog
       showDialog(
         context: context,
-        builder: (context) => VideoPlayerDialog(videoUrl: project.videoUrl!),
+        builder: (context) => ChewieVideoDialog(
+          videoUrl: project.videoUrl!,
+          title: project.title,
+        ),
       );
     } else if (project.isProcessing) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -600,14 +703,20 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               duration: project.durationFormatted,
               status: project.status,
               projectId: project.id,
-              imagePath: project.thumbnailUrl.isNotEmpty
-                  ? project.thumbnailUrl
-                  : 'images/project-card.png',
+              prompt: project.description,
+              imagePath:
+                  project.type == 'avatar-based' &&
+                      project.avatarImageUrl != null &&
+                      project.avatarImageUrl!.isNotEmpty
+                  ? project.avatarImageUrl!
+                  : (project.thumbnailUrl.isNotEmpty
+                        ? project.thumbnailUrl
+                        : 'images/project-card.png'),
               onTap: () {
                 print('🔍 Project Screen Project ID: ${project.id}');
                 print('🔍 Project Screen Project Title: ${project.title}');
                 print('🔍 Project Screen Project Status: ${project.status}');
-                
+
                 if (project.id.isNotEmpty) {
                   Navigator.push(
                     context,
@@ -634,7 +743,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Unable to open project details. Invalid project ID.'),
+                      content: Text(
+                        'Unable to open project details. Invalid project ID.',
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );

@@ -21,11 +21,24 @@ const avatarSchema = new mongoose.Schema({
     enum: ['Male', 'Female', 'Other'],
     required: true,
   },
-  style: {
-    type: String,
-    enum: ['Professional', 'Casual', 'Formal', 'Creative'],
-    required: true,
-  },
+  // style field removed as requested
+  expressions: [{
+    start_frame: {
+      type: Number,
+      default: 0
+    },
+    expression: {
+      type: String,
+      enum: ['neutral', 'happy', 'surprise', 'serious'],
+      default: 'neutral'
+    },
+    intensity: {
+      type: Number,
+      default: 1.0,
+      min: 0,
+      max: 1
+    }
+  }],
   imageUrl: {
     type: String,
     required: true,

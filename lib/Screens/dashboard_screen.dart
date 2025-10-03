@@ -17,7 +17,7 @@ import 'package:video_gen_app/Utils/animated_page_route.dart';
 import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Component/dashboard_card.dart';
 import 'package:video_gen_app/Component/round_button.dart';
-import 'package:video_gen_app/Component/video_player_dialog.dart';
+import 'package:video_gen_app/Component/chewie_video_dialog.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool showAppBar;
@@ -678,6 +678,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     itemCount: _recentProjects.length,
                                     itemBuilder: (context, index) {
                                       final project = _recentProjects[index];
+                                      // For avatar-based projects, use avatar image instead of thumbnail
+                                      String imagePath =
+                                          "images/project-card.png";
+                                      if (project['type'] == 'avatar-based' &&
+                                          project['avatarId'] != null &&
+                                          project['avatarId']['imageUrl'] !=
+                                              null) {
+                                        imagePath =
+                                            project['avatarId']['imageUrl'];
+                                      } else if (project['thumbnailUrl'] !=
+                                              null &&
+                                          project['thumbnailUrl']
+                                              .toString()
+                                              .isNotEmpty) {
+                                        imagePath = project['thumbnailUrl'];
+                                      }
+
                                       return ProjectCard(
                                         title: project['title'] ?? 'Untitled',
                                         createdDate:
@@ -688,21 +705,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             DashboardService.formatDuration(
                                               project['duration'],
                                             ),
-                                        imagePath:
-                                            project['thumbnailUrl'] ??
-                                            "images/project-card.png",
+                                        imagePath: imagePath,
                                         status: project['status'] ?? 'unknown',
+                                        prompt: project['description'],
                                         projectId:
                                             project['_id'] ?? project['id'],
                                         onTap: () {
                                           final projectId =
                                               project['_id'] ?? project['id'];
-                                          print('🔍 Dashboard Project ID: $projectId');
-                                          print('🔍 Dashboard Project Data: ${project.keys}');
-                                          print('🔍 Dashboard Project _id: ${project['_id']}');
-                                          print('🔍 Dashboard Project id: ${project['id']}');
-                                          
-                                          if (projectId != null && projectId.toString().isNotEmpty) {
+                                          print(
+                                            '🔍 Dashboard Project ID: $projectId',
+                                          );
+                                          print(
+                                            '🔍 Dashboard Project Data: ${project.keys}',
+                                          );
+                                          print(
+                                            '🔍 Dashboard Project _id: ${project['_id']}',
+                                          );
+                                          print(
+                                            '🔍 Dashboard Project id: ${project['id']}',
+                                          );
+
+                                          if (projectId != null &&
+                                              projectId.toString().isNotEmpty) {
                                             navigateWithAnimation(
                                               context,
                                               ProjectDetailScreen(
@@ -711,9 +736,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               ),
                                             );
                                           } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
                                               const SnackBar(
-                                                content: Text('Unable to open project details. Invalid project ID.'),
+                                                content: Text(
+                                                  'Unable to open project details. Invalid project ID.',
+                                                ),
                                                 backgroundColor: Colors.red,
                                               ),
                                             );
@@ -727,8 +756,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             showDialog(
                                               context: context,
                                               builder: (context) =>
-                                                  VideoPlayerDialog(
+                                                  ChewieVideoDialog(
                                                     videoUrl: videoUrl,
+                                                    title: 'Generated Video',
                                                   ),
                                             );
                                           } else {

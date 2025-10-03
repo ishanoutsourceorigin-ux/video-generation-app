@@ -90,7 +90,7 @@ const projectSchema = new mongoose.Schema({
   // Processing Information
   provider: {
     type: String,
-    enum: ['runway', 'elevenlabs-runway', 'synthesia', 'custom'],
+    enum: ['runway', 'elevenlabs-runway', 'elevenlabs-did', 'synthesia', 'custom'],
     default: 'runway',
   },
   taskId: {

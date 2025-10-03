@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:video_gen_app/Component/video_player_dialog.dart';
+import 'package:video_gen_app/Component/chewie_video_dialog.dart';
 import 'package:video_gen_app/Component/download_progress_overlay.dart';
 import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
@@ -598,7 +598,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
           const SizedBox(height: 16),
           _buildInfoRow('Created', _formatDate(project!['createdAt'])),
           _buildInfoRow('Type', project!['type'] ?? 'Unknown'),
-          _buildInfoRow('Provider', project!['provider'] ?? 'Unknown'),
+          // _buildInfoRow('Provider', project!['provider'] ?? 'Unknown'),
           if (project!['processingStartedAt'] != null)
             _buildInfoRow(
               'Processing Started',
@@ -681,9 +681,18 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   }
 
   Widget _buildVideoPreview(String videoUrl) {
-    // Use existing thumbnail URL from project data, fallback to generation
-    String thumbnailUrl =
-        project!['thumbnailUrl'] ?? _generateThumbnailUrl(videoUrl);
+    // For avatar-based projects, use avatar image if available
+    final avatarImageUrl =
+        project!['type'] == 'avatar-based' &&
+            project!['avatarId'] is Map &&
+            project!['avatarId']['imageUrl'] != null
+        ? project!['avatarId']['imageUrl']
+        : null;
+
+    // Use avatar image for avatar-based projects, otherwise use existing thumbnail URL or generate one
+    String thumbnailUrl = avatarImageUrl != null && avatarImageUrl.isNotEmpty
+        ? avatarImageUrl
+        : (project!['thumbnailUrl'] ?? _generateThumbnailUrl(videoUrl));
 
     return Column(
       children: [
@@ -737,55 +746,53 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                       size: 40,
                     ),
                   ),
-
-                  
                 ),
                 // Duration badge (if available)
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${project!['configuration']?['duration'] ?? '8'}s',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
+                // Positioned(
+                //   bottom: 8,
+                //   right: 8,
+                //   child: Container(
+                //     padding: const EdgeInsets.symmetric(
+                //       horizontal: 8,
+                //       vertical: 4,
+                //     ),
+                //     decoration: BoxDecoration(
+                //       color: Colors.black.withOpacity(0.8),
+                //       borderRadius: BorderRadius.circular(4),
+                //     ),
+                //     child: Text(
+                //       '${project!['configuration']?['duration'] ?? '8'}s',
+                //       style: const TextStyle(
+                //         color: Colors.white,
+                //         fontSize: 12,
+                //         fontWeight: FontWeight.bold,
+                //       ),
+                //     ),
+                //   ),
+                // ),
                 // Quality badge
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.purpleColor.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${project!['configuration']?['resolution'] ?? '720'}p',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
+                // Positioned(
+                //   top: 8,
+                //   left: 8,
+                //   child: Container(
+                //     padding: const EdgeInsets.symmetric(
+                //       horizontal: 8,
+                //       vertical: 4,
+                //     ),
+                //     decoration: BoxDecoration(
+                //       color: AppColors.purpleColor.withOpacity(0.9),
+                //       borderRadius: BorderRadius.circular(4),
+                //     ),
+                //     child: Text(
+                //       '${project!['configuration']?['resolution'] ?? '720'}p',
+                //       style: const TextStyle(
+                //         color: Colors.white,
+                //         fontSize: 12,
+                //         fontWeight: FontWeight.bold,
+                //       ),
+                //     ),
+                //   ),
+                // ),
               ],
             ),
           ),
@@ -990,20 +997,20 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildConfigItem(
-                  'Duration',
-                  '${config['duration'] ?? 'Unknown'}s',
-                ),
-              ),
-              Expanded(
-                child: _buildConfigItem('Style', config['style'] ?? 'Unknown'),
-              ),
-            ],
-          ),
+          // const SizedBox(height: 12),
+          // Row(
+          //   children: [
+          //     Expanded(
+          //       child: _buildConfigItem(
+          //         'Duration',
+          //         '${config['duration'] ?? 'Unknown'}s',
+          //       ),
+          //     ),
+          //     Expanded(
+          //       child: _buildConfigItem('Style', config['style'] ?? 'Unknown'),
+          //     ),
+          //   ],
+          // ),
         ],
       ),
     );
@@ -1130,7 +1137,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   void _openVideoPlayer(String videoUrl) {
     showDialog(
       context: context,
-      builder: (context) => VideoPlayerDialog(videoUrl: videoUrl),
+      builder: (context) => ChewieVideoDialog(
+        videoUrl: videoUrl,
+        title: project?['title'] ?? 'Video Player',
+      ),
     );
   }
 }

@@ -16,6 +16,14 @@ cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true, // Use HTTPS
+});
+
+// Log Cloudinary configuration (without secrets)
+console.log('☁️ Cloudinary configured:', {
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? '✅ Set' : '❌ Missing',
+  api_key: process.env.CLOUDINARY_API_KEY ? '✅ Set' : '❌ Missing',
+  api_secret: process.env.CLOUDINARY_API_SECRET ? '✅ Set' : '❌ Missing',
 });
 
 // Configure multer for file uploads
@@ -59,16 +67,49 @@ const upload = multer({
 // Helper function to upload to Cloudinary
 const uploadToCloudinary = async (filePath, resourceType = 'auto', folder = 'avatars') => {
   try {
+    // Generate current timestamp to avoid stale request errors
+    const timestamp = Math.round(Date.now() / 1000);
+    
     const result = await cloudinary.uploader.upload(filePath, {
       resource_type: resourceType,
       folder: folder,
       use_filename: true,
       unique_filename: true,
+      timestamp: timestamp,
+      // Add timeout and retry configuration
+      timeout: 60000, // 60 seconds timeout
     });
     return result;
   } catch (error) {
     console.error('Cloudinary upload error:', error);
-    throw new Error('Failed to upload file to Cloudinary');
+    console.error('Error details:', {
+      message: error.message,
+      http_code: error.http_code,
+      timestamp: Math.round(Date.now() / 1000)
+    });
+    
+    // If it's a stale request error, retry once with new timestamp
+    if (error.message && error.message.includes('Stale request')) {
+      console.log('🔄 Retrying Cloudinary upload due to stale request...');
+      try {
+        const newTimestamp = Math.round(Date.now() / 1000);
+        const retryResult = await cloudinary.uploader.upload(filePath, {
+          resource_type: resourceType,
+          folder: folder,
+          use_filename: true,
+          unique_filename: true,
+          timestamp: newTimestamp,
+          timeout: 60000,
+        });
+        console.log('✅ Retry successful');
+        return retryResult;
+      } catch (retryError) {
+        console.error('❌ Retry failed:', retryError);
+        throw new Error(`Failed to upload file to Cloudinary after retry: ${retryError.message}`);
+      }
+    }
+    
+    throw new Error(`Failed to upload file to Cloudinary: ${error.message}`);
   }
 };
 
@@ -111,16 +152,16 @@ router.post('/create', upload.fields([
     console.log('📝 Request body:', req.body);
     console.log('📁 Files received:', req.files);
     
-    const { name, profession, gender, style } = req.body;
+    const { name, profession, gender } = req.body;
     const userId = req.user.uid;
 
     console.log(`👤 User ID: ${userId}`);
-    console.log(`📋 Avatar details: ${name}, ${profession}, ${gender}, ${style}`);
+    console.log(`📋 Avatar details: ${name}, ${profession}, ${gender}`);
 
     // Validation
-    if (!name || !profession || !gender || !style) {
+    if (!name || !profession || !gender) {
       return res.status(400).json({
-        error: 'Missing required fields: name, profession, gender, style'
+        error: 'Missing required fields: name, profession, gender'
       });
     }
 
@@ -162,7 +203,11 @@ router.post('/create', upload.fields([
       name,
       profession,
       gender,
-      style,
+      expressions: [{
+        start_frame: 0,
+        expression: 'neutral',
+        intensity: 1.0
+      }],
       imageUrl: imageUpload.secure_url,
       voiceUrl: voiceUpload.secure_url,
       cloudinaryImageId: imageUpload.public_id,
@@ -206,7 +251,6 @@ router.post('/create', upload.fields([
         name: avatar.name,
         profession: avatar.profession,
         gender: avatar.gender,
-        style: avatar.style,
         imageUrl: avatar.imageUrl,
         status: avatar.status,
         createdAt: avatar.createdAt,

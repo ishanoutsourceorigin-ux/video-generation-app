@@ -39,7 +39,6 @@ class ApiService {
     required String name,
     required String profession,
     required String gender,
-    required String style,
     required File imageFile,
     required File voiceFile,
   }) async {
@@ -65,7 +64,6 @@ class ApiService {
       request.fields['name'] = name;
       request.fields['profession'] = profession;
       request.fields['gender'] = gender;
-      request.fields['style'] = style;
 
       // Add files
       request.files.add(
@@ -160,8 +158,8 @@ class ApiService {
     required String avatarId,
     required String title,
     required String script,
-    int? duration,
     String? aspectRatio,
+    String? expression,
   }) async {
     try {
       final headers = await _getHeaders();
@@ -169,8 +167,8 @@ class ApiService {
         'avatarId': avatarId,
         'title': title,
         'script': script,
-        if (duration != null) 'duration': duration,
         if (aspectRatio != null) 'aspectRatio': aspectRatio,
+        if (expression != null) 'expression': expression,
       });
 
       final response = await http.post(

@@ -4,6 +4,7 @@ import 'package:video_gen_app/Component/round_button.dart';
 import 'package:video_gen_app/Component/round_textfield.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
 import 'package:video_gen_app/Screens/Video/avatar_videos_screen.dart';
+import 'package:video_gen_app/Utils/animated_page_route.dart';
 
 class GenerateVideoScreen extends StatefulWidget {
   final Map<String, dynamic> avatar;
@@ -18,21 +19,22 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _scriptController = TextEditingController();
   bool _isGenerating = false;
-  int _selectedDuration = 5; // Default to 5 seconds
   String _selectedAspectRatio = '9:16'; // Default to portrait for avatars
+  String _selectedExpression = 'neutral'; // Default expression
 
-  final List<Map<String, dynamic>> _durations = [
-    {'label': '5 seconds', 'value': 5},
-    {'label': '10 seconds', 'value': 10},
+  // D-ID supported aspect ratios only
+  final List<Map<String, dynamic>> _aspectRatios = [
+    {'label': 'Portrait (9:16) - Best for mobile', 'value': '9:16'},
+    {'label': 'Landscape (16:9) - Best for desktop', 'value': '16:9'},
+    {'label': 'Square (1:1) - Best for social media', 'value': '1:1'},
   ];
 
-  final List<Map<String, dynamic>> _aspectRatios = [
-    {'label': 'Portrait (9:16) - 720x1280px', 'value': '9:16'},
-    {'label': 'Landscape (16:9) - 1280x720px', 'value': '16:9'},
-    {'label': 'Square (1:1) - 960x960px', 'value': '1:1'},
-    {'label': 'Standard (4:3) - 1104x832px', 'value': '4:3'},
-    {'label': 'Portrait Standard (3:4) - 832x1104px', 'value': '3:4'},
-    {'label': 'Ultra-wide (21:9) - 1584x672px', 'value': '21:9'},
+  // D-ID supported expressions
+  final List<Map<String, dynamic>> _expressions = [
+    {'label': 'Neutral - Natural expression', 'value': 'neutral'},
+    {'label': 'Happy - Smiling expression', 'value': 'happy'},
+    {'label': 'Surprise - Surprised expression', 'value': 'surprise'},
+    {'label': 'Serious - Professional expression', 'value': 'serious'},
   ];
 
   @override
@@ -48,8 +50,8 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
     final avatarImageUrl = widget.avatar['imageUrl'] ?? '';
 
     // Debug: Print avatar data structure
-    print("🔍 Avatar data received: ${widget.avatar}");
-    print("📝 Avatar keys: ${widget.avatar.keys.toList()}");
+    // print("🔍 Avatar data received: ${widget.avatar}");
+    // print("📝 Avatar keys: ${widget.avatar.keys.toList()}");
 
     return Scaffold(
       backgroundColor: AppColors.appBgColor,
@@ -214,60 +216,6 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Duration Selection
-              const Text(
-                "Video Duration",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.darkGreyColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _selectedDuration,
-                    isExpanded: true,
-                    dropdownColor: AppColors.darkGreyColor,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    icon: Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Colors.grey.shade400,
-                    ),
-                    onChanged: (int? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          _selectedDuration = newValue;
-                        });
-                      }
-                    },
-                    items: _durations.map<DropdownMenuItem<int>>((duration) {
-                      return DropdownMenuItem<int>(
-                        value: duration['value'] as int,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(duration['label'] as String),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Select video duration (RunwayML gen4_turbo supports 5 or 10 seconds)",
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-              ),
-              const SizedBox(height: 24),
-
               // Aspect Ratio Selection
               const Text(
                 "Video Aspect Ratio",
@@ -320,7 +268,66 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                "Choose output resolution and aspect ratio for your avatar video",
+                "Choose aspect ratio for your talking head video (duration auto-detected from audio)",
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+              ),
+              const SizedBox(height: 24),
+
+              // Expression Selection
+              const Text(
+                "Avatar Expression",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.darkGreyColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.greyColor.withOpacity(0.3),
+                  ),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedExpression,
+                    isExpanded: true,
+                    dropdownColor: AppColors.darkGreyColor,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    icon: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.grey.shade400,
+                    ),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedExpression = newValue;
+                        });
+                      }
+                    },
+                    items: _expressions.map<DropdownMenuItem<String>>((
+                      expression,
+                    ) {
+                      return DropdownMenuItem<String>(
+                        value: expression['value'] as String,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            expression['label'] as String,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Choose facial expression for your avatar during the video",
                 style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
               ),
               const SizedBox(height: 40),
@@ -346,9 +353,7 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                 onPress: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const AvatarVideosScreen(),
-                    ),
+                    AnimatedPageRoute(page: const AvatarVideosScreen()),
                   );
                 },
                 leadingIcon: Icons.video_library,
@@ -393,10 +398,10 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "• Video generation typically takes 2-5 minutes\n"
-                      "• Your avatar will speak the script using their cloned voice\n"
-                      "• The video will be saved to your projects\n"
-                      "• You'll receive a notification when it's ready",
+                      "• Video generation takes 1-2 minutes with D-ID\n"
+                      "• Perfect lip-sync with your avatar's cloned voice\n"
+                      "• Duration auto-detected from your script length\n"
+                      "• High-quality talking head video with natural expressions",
                       style: TextStyle(
                         color: Colors.grey.shade300,
                         fontSize: 12,
@@ -451,8 +456,8 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
         avatarId: avatarId,
         title: _titleController.text.trim(),
         script: _scriptController.text.trim(),
-        duration: _selectedDuration,
         aspectRatio: _selectedAspectRatio,
+        expression: _selectedExpression,
       );
 
       print("✅ Video generation started: $result");
@@ -472,7 +477,7 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
       // Navigate to avatar videos screen (same as text video flow)
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const AvatarVideosScreen()),
+        AnimatedPageRoute(page: const AvatarVideosScreen()),
       );
     } catch (e) {
       print("❌ Error generating video: $e");

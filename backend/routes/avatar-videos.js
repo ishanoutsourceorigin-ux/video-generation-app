@@ -4,6 +4,7 @@ const Project = require('../models/Project');
 const Avatar = require('../models/Avatar');
 const elevenLabsService = require('../services/elevenLabsService');
 const RunwayService = require('../services/runwayService');
+const didService = require('../services/didService');
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ router.post('/create', async (req, res) => {
     console.log('🎭 === STARTING AVATAR VIDEO PROJECT CREATION ===');
     console.log('📥 Request body:', JSON.stringify(req.body, null, 2)); 
     
-    const { avatarId, title, script, duration = 5, aspectRatio = '9:16' } = req.body; // Defaults
+    const { avatarId, title, script, aspectRatio = '9:16', expression = 'neutral' } = req.body; // Defaults
     const userId = getUserId(req);
     
     // Validation
@@ -35,10 +36,11 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // Validate duration for gen4_turbo
-    if (duration !== 5 && duration !== 10) {
+    // Validate aspect ratio for D-ID
+    const supportedRatios = ['9:16', '16:9', '1:1'];
+    if (!supportedRatios.includes(aspectRatio)) {
       return res.status(400).json({
-        error: 'Duration must be 5 or 10 seconds for gen4_turbo model'
+        error: 'Aspect ratio must be 9:16, 16:9, or 1:1 for D-ID'
       });
     }
 
@@ -95,7 +97,7 @@ router.post('/create', async (req, res) => {
     console.log('✅ Project created:', project._id);
 
     // 3. Start async video generation
-    processAvatarVideoGeneration(project._id, avatar, script, duration, aspectRatio)
+    processAvatarVideoGeneration(project._id, avatar, script, aspectRatio, expression)
       .catch(error => {
         console.error('❌ Avatar video generation error:', error);
       });
@@ -124,7 +126,7 @@ router.post('/create', async (req, res) => {
 });
 
 // Async function to process avatar video generation
-async function processAvatarVideoGeneration(projectId, avatar, script, duration = 5, aspectRatio = '9:16') {
+async function processAvatarVideoGeneration(projectId, avatar, script, aspectRatio = '9:16', expression = 'neutral') {
   try {
     console.log('🎬 Starting avatar video processing for project:', projectId);
 
@@ -144,18 +146,18 @@ async function processAvatarVideoGeneration(projectId, avatar, script, duration 
 
     console.log('✅ Speech generated successfully');
 
-    // Step 2: Create talking head video using RunwayML
-    console.log('🎥 Step 2: Creating talking head video with RunwayML...');
+    // Step 2: Create talking head video using D-ID
+    console.log('🎥 Step 2: Creating talking head video with D-ID...');
     const videoResult = await generateTalkingHeadVideo(
       avatar.imageUrl,
       audioResult.audioUrl,
       projectId,
-      duration,
-      aspectRatio
+      aspectRatio,
+      expression
     );
 
     if (!videoResult.success) {
-      throw new Error(`RunwayML generation failed: ${videoResult.error}`);
+      throw new Error(`D-ID talking head generation failed: ${videoResult.error}`);
     }
 
     console.log('✅ Avatar video generated successfully');
@@ -163,6 +165,8 @@ async function processAvatarVideoGeneration(projectId, avatar, script, duration 
     // Step 3: Update project with final video
     await Project.findByIdAndUpdate(projectId, {
       status: 'completed',
+      provider: 'elevenlabs-did', // D-ID + ElevenLabs combination
+      taskId: videoResult.talkId, // D-ID talk ID
       videoUrl: videoResult.videoUrl,
       thumbnailUrl: videoResult.thumbnailUrl,
       processingCompletedAt: new Date(),
@@ -188,43 +192,34 @@ async function processAvatarVideoGeneration(projectId, avatar, script, duration 
   }
 }
 
-// Helper function to generate talking head video using RunwayML
-async function generateTalkingHeadVideo(imageUrl, audioUrl, projectId, duration = 5, aspectRatio = '9:16') {
+// Helper function to generate talking head video using D-ID
+async function generateTalkingHeadVideo(imageUrl, audioUrl, projectId, aspectRatio = '9:16', expression = 'neutral') {
   try {
-    console.log('🎭 Generating talking head video...');
+    console.log('🎭 Generating talking head video with D-ID...');
     console.log('📸 Image URL:', imageUrl);
     console.log('🎵 Audio URL:', audioUrl);
-    console.log('⏱️ Duration:', duration, 'seconds');
+    console.log('⏱️ Duration: Auto-detected from audio by D-ID');
     console.log('📐 Aspect Ratio:', aspectRatio);
+    console.log('😊 Expression:', expression);
 
-    // Use RunwayML's image-to-video with audio
-    const runwayResult = await runwayService.generateImageToVideoWithAudio({
+    // Use D-ID's talking head generation with perfect lip-sync
+    const didResult = await didService.generateTalkingHead({
       imageUrl,
       audioUrl,
-      aspectRatio: aspectRatio, // User-selected aspect ratio
-      model: 'gen4_turbo', // Official model for image-to-video
-      duration: duration // Pass user-selected duration
+      aspectRatio: aspectRatio, // User-selected aspect ratio (duration auto-detected)
+      expression: expression // User-selected expression
     });
 
-    if (!runwayResult.success) {
-      return { success: false, error: runwayResult.error };
+    if (!didResult.success) {
+      return { success: false, error: didResult.error };
     }
 
-    // Upload generated video to Cloudinary
-    console.log('☁️ Uploading to Cloudinary...');
-    const cloudinaryResult = await cloudinary.uploader.upload(runwayResult.videoUrl, {
-      resource_type: 'video',
-      folder: 'avatar-videos',
-      public_id: `avatar_video_${projectId}_${Date.now()}`,
-      overwrite: true,
-      transformation: [
-        { quality: 'auto:good' },
-        { format: 'mp4' }
-      ]
-    });
+    // Download from D-ID and upload to Cloudinary
+    console.log('☁️ Downloading from D-ID and uploading to Cloudinary...');
+    const cloudinaryResult = await didService.downloadAndUploadVideo(didResult.videoUrl, projectId);
 
-    // Generate thumbnail
-    const thumbnailResult = await cloudinary.uploader.upload(runwayResult.videoUrl, {
+    // Generate thumbnail from the video
+    const thumbnailResult = await cloudinary.uploader.upload(cloudinaryResult.secure_url, {
       resource_type: 'video',
       folder: 'avatar-thumbnails',
       public_id: `avatar_thumb_${projectId}_${Date.now()}`,
@@ -240,10 +235,12 @@ async function generateTalkingHeadVideo(imageUrl, audioUrl, projectId, duration 
       success: true,
       videoUrl: cloudinaryResult.secure_url,
       thumbnailUrl: thumbnailResult.secure_url,
-      duration: cloudinaryResult.duration || 8,
+      duration: didResult.duration || cloudinaryResult.duration || 8,
       fileSize: cloudinaryResult.bytes,
       width: cloudinaryResult.width,
-      height: cloudinaryResult.height
+      height: cloudinaryResult.height,
+      provider: 'did', // Indicate this was generated with D-ID
+      talkId: didResult.talkId // D-ID talk ID for reference
     };
 
   } catch (error) {
@@ -251,6 +248,17 @@ async function generateTalkingHeadVideo(imageUrl, audioUrl, projectId, duration 
     return { success: false, error: error.message };
   }
 }
+
+// GET /api/avatar-videos/credits - Check D-ID credits
+router.get('/credits', async (req, res) => {
+  try {
+    const credits = await didService.getCredits();
+    res.json(credits);
+  } catch (error) {
+    console.error('❌ Error checking D-ID credits:', error);
+    res.status(500).json({ error: 'Failed to check credits' });
+  }
+});
 
 // GET /api/avatar-videos/user-avatars - Get user's avatars for selection
 router.get('/user-avatars', async (req, res) => {
