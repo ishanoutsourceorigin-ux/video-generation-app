@@ -59,6 +59,9 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:5000',
       'http://localhost:8080',
+      'https://video-generation-app-dar3.onrender.com',
+      // Flutter app may also need CORS access
+      'http://localhost:8080', // Flutter web dev
     ].filter(Boolean);
     
     if (!origin || allowedOrigins.includes(origin)) {

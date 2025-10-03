@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../Config/environment.dart';
 
 class ApiService {
-  // Use 10.0.2.2 for Android emulator to connect to host machine's localhost
-  static const String baseUrl = 'http://10.0.2.2:5000/api'; // Android emulator
+  // Production Render URL
+  static String get baseUrl => Environment.apiUrl;
+  // Local development URLs (commented out for production)
+  // static const String baseUrl = 'http://10.0.2.2:5000/api'; // Android emulator
   // static const String baseUrl = 'http://localhost:5000/api'; // For web/desktop
-  // static const String baseUrl = 'http://YOUR_COMP        'duration': duration,P:5000/api'; // For physical device
 
   // Get auth headers with Firebase token
   static Future<Map<String, String>> _getHeaders() async {

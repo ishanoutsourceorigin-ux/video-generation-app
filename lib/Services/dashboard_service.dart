@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import '../Config/environment.dart';
 
 class DashboardService {
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  static String get baseUrl => Environment.apiUrl;
 
   // Get auth headers with Firebase token
   static Future<Map<String, String>> _getHeaders() async {
