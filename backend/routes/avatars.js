@@ -194,7 +194,7 @@ router.post('/create', upload.fields([
 
     // Upload voice to Cloudinary
     console.log('Uploading voice to Cloudinary...');
-    const voiceUpload = await uploadToCloudinary(voiceFile.path, 'video', 'avatars/voices');
+    const voiceUpload = await uploadToCloudinary(voiceFile.path, 'raw', 'avatars/voices');
     uploadedFiles.push({ type: 'voice', public_id: voiceUpload.public_id });
 
     // Create avatar record in database
@@ -272,7 +272,7 @@ router.post('/create', upload.fields([
     for (const file of uploadedFiles) {
       try {
         await cloudinary.uploader.destroy(file.public_id, { 
-          resource_type: file.type === 'image' ? 'image' : 'video' 
+          resource_type: file.type === 'image' ? 'image' : 'raw' 
         });
       } catch (cleanupError) {
         console.error('Cloudinary cleanup error:', cleanupError);
@@ -369,7 +369,7 @@ router.delete('/:id', async (req, res) => {
     // Delete from Cloudinary
     try {
       await cloudinary.uploader.destroy(avatar.cloudinaryImageId, { resource_type: 'image' });
-      await cloudinary.uploader.destroy(avatar.cloudinaryVoiceId, { resource_type: 'video' });
+      await cloudinary.uploader.destroy(avatar.cloudinaryVoiceId, { resource_type: 'raw' });
     } catch (cloudinaryError) {
       console.error('Cloudinary deletion error:', cloudinaryError);
     }
