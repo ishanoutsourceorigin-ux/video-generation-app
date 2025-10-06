@@ -65,12 +65,12 @@ const upload = multer({
 });
 
 // Helper function to upload to Cloudinary
-const uploadToCloudinary = async (filePath, resourceType = 'auto', folder = 'avatars') => {
+const uploadToCloudinary = async (filePath, resourceType = 'auto', folder = 'avatars', options = {}) => {
   try {
     // Generate current timestamp to avoid stale request errors
     const timestamp = Math.round(Date.now() / 1000);
     
-    const result = await cloudinary.uploader.upload(filePath, {
+    const uploadOptions = {
       resource_type: resourceType,
       folder: folder,
       use_filename: true,
@@ -78,7 +78,10 @@ const uploadToCloudinary = async (filePath, resourceType = 'auto', folder = 'ava
       timestamp: timestamp,
       // Add timeout and retry configuration
       timeout: 60000, // 60 seconds timeout
-    });
+      ...options, // Merge additional options
+    };
+    
+    const result = await cloudinary.uploader.upload(filePath, uploadOptions);
     return result;
   } catch (error) {
     console.error('Cloudinary upload error:', error);
@@ -192,9 +195,12 @@ router.post('/create', upload.fields([
     const imageUpload = await uploadToCloudinary(imageFile.path, 'image', 'avatars/images');
     uploadedFiles.push({ type: 'image', public_id: imageUpload.public_id });
 
-    // Upload voice to Cloudinary
+    // Upload voice to Cloudinary with MP3 conversion
     console.log('Uploading voice to Cloudinary...');
-    const voiceUpload = await uploadToCloudinary(voiceFile.path, 'raw', 'avatars/voices');
+    const voiceUpload = await uploadToCloudinary(voiceFile.path, 'raw', 'avatars/voices', {
+      format: 'mp3', // Convert to MP3 format
+      audio_codec: 'mp3',
+    });
     uploadedFiles.push({ type: 'voice', public_id: voiceUpload.public_id });
 
     // Create avatar record in database
