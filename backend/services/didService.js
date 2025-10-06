@@ -5,12 +5,16 @@ const { uploadVideo, cleanupLocalFile } = require('./cloudinaryService');
 
 class DIDService {
   constructor() {
-    this.apiKey = 'aXNoYW5vdXRzb3VyY2VvcmlnaW5AZ21haWwuY29t:oYJ3mUGgaBJ9egzChE6zK';
-    this.baseUrl = 'https://api.d-id.com';
+    this.apiKey = process.env.DID_API_KEY || 'aXNoYW5vdXRzb3VyY2VvcmlnaW5AZ21haWwuY29t:oYJ3mUGgaBJ9egzChE6zK';
+    this.baseUrl = process.env.DID_BASE_URL || 'https://api.d-id.com';
     
     console.log('🎭 D-ID Service initialized');
     console.log('🔑 API Key configured:', !!this.apiKey);
     console.log('🌐 API Base URL:', this.baseUrl);
+    
+    if (!process.env.DID_API_KEY) {
+      console.warn('⚠️ Using fallback D-ID API key. Please set DID_API_KEY in environment variables.');
+    }
   }
 
   // Generate talking head video using D-ID API
