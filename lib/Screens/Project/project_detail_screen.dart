@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:video_gen_app/Component/chewie_video_dialog.dart';
-import 'package:video_gen_app/Component/download_progress_overlay.dart';
 import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
 import 'package:video_gen_app/Component/round_button.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
+import 'package:video_gen_app/Utils/video_download_helper.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   final String projectId;
@@ -190,87 +187,20 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       return;
     }
 
-    OverlayEntry? overlayEntry;
-
     try {
-      // Show attractive download progress overlay
-      overlayEntry = OverlayEntry(
-        builder: (context) => const DownloadProgressOverlay(),
+      await VideoDownloadHelper.downloadVideo(
+        context: context,
+        videoUrl: videoUrl,
+        fileName: project?['title'],
       );
-      Overlay.of(context).insert(overlayEntry);
 
-      // Get the video data
-      final response = await http.get(Uri.parse(videoUrl));
-
-      if (response.statusCode == 200) {
-        // Get the appropriate directory based on platform
-        Directory? directory;
-
-        if (Platform.isAndroid) {
-          // For Android, try multiple approaches
-          try {
-            // First try: External storage Downloads directory
-            final externalDir = await getExternalStorageDirectory();
-            if (externalDir != null) {
-              // Create a Downloads folder in the app's external directory
-              final appDownloads = Directory('${externalDir.path}/Downloads');
-              await appDownloads.create(recursive: true);
-              directory = appDownloads;
-            }
-          } catch (e) {
-            print('Failed to access external storage: $e');
-            // Fallback: Use app documents directory
-            directory = await getApplicationDocumentsDirectory();
-          }
-        } else if (Platform.isIOS) {
-          // For iOS, use documents directory
-          directory = await getApplicationDocumentsDirectory();
-        }
-
-        if (directory == null) {
-          // Remove overlay on error
-          overlayEntry?.remove();
-          _showSnackbar('Unable to access storage directory', isError: true);
-          return;
-        }
-
-        // Generate filename with timestamp
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final projectTitle =
-            project!['title']?.replaceAll(RegExp(r'[^\w\s-]'), '') ?? 'video';
-        final filename = '${projectTitle}_$timestamp.mp4';
-        final filePath = '${directory.path}/$filename';
-
-        // Write the file
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-
-        // Remove overlay on success
-        overlayEntry?.remove();
-
-        _showSnackbar(
-          'Video downloaded successfully!\\nSaved to: ${directory.path}',
-        );
-
-        // Update download count
-        if (project != null) {
-          setState(() {
-            project!['downloadCount'] = (project!['downloadCount'] ?? 0) + 1;
-          });
-        }
-      } else {
-        // Remove overlay on error
-        overlayEntry?.remove();
-
-        _showSnackbar(
-          'Failed to download video (${response.statusCode})',
-          isError: true,
-        );
+      // Update download count
+      if (project != null) {
+        setState(() {
+          project!['downloadCount'] = (project!['downloadCount'] ?? 0) + 1;
+        });
       }
     } catch (e) {
-      // Remove overlay on error
-      overlayEntry?.remove();
-
       _showSnackbar('Download failed: ${e.toString()}', isError: true);
       print('Download error: $e');
     }

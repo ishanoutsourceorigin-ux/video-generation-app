@@ -4,6 +4,8 @@ import 'package:video_gen_app/Services/Api/api_service.dart';
 import 'package:video_gen_app/Screens/Project/project_detail_screen.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
 import 'package:video_gen_app/Component/project_card.dart';
+import 'package:video_gen_app/Utils/video_download_helper.dart';
+import 'package:video_gen_app/Component/chewie_video_dialog.dart';
 
 class AvatarVideosScreen extends StatefulWidget {
   const AvatarVideosScreen({super.key});
@@ -251,6 +253,7 @@ class _AvatarVideosScreenState extends State<AvatarVideosScreen> {
       status: status,
       projectId: projectId,
       prompt: project['description'],
+      videoUrl: project['videoUrl'], // Add videoUrl parameter
       imagePath: imagePath,
       onTap: () => _viewProject(project),
       onPlay: () => _playProject(project),
@@ -261,10 +264,21 @@ class _AvatarVideosScreenState extends State<AvatarVideosScreen> {
 
   void _playProject(Map<String, dynamic> project) {
     final videoUrl = project['videoUrl'] ?? '';
-    if (videoUrl.isNotEmpty) {
-      // Show video in dialog or navigate to video player
-      // You can implement video playback here
-      _viewProject(project);
+    final title = project['title'] ?? 'Avatar Video';
+
+    if (videoUrl.isNotEmpty && project['status'] == 'completed') {
+      showDialog(
+        context: context,
+        builder: (context) =>
+            ChewieVideoDialog(videoUrl: videoUrl, title: title),
+      );
+    } else if (project['status'] != 'completed') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Video is still processing. Please wait...'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -275,14 +289,21 @@ class _AvatarVideosScreenState extends State<AvatarVideosScreen> {
     }
   }
 
-  void _downloadProject(Map<String, dynamic> project) {
+  Future<void> _downloadProject(Map<String, dynamic> project) async {
     final videoUrl = project['videoUrl'] ?? '';
-    if (videoUrl.isNotEmpty) {
-      // Implement download functionality
+    final title = project['title'] ?? 'Avatar Video';
+
+    if (videoUrl.isNotEmpty && project['status'] == 'completed') {
+      await VideoDownloadHelper.downloadVideo(
+        context: context,
+        videoUrl: videoUrl,
+        fileName: title,
+      );
+    } else if (project['status'] != 'completed') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Download feature coming soon'),
-          backgroundColor: Colors.blue,
+          content: Text('Video is not ready for download'),
+          backgroundColor: Colors.orange,
         ),
       );
     } else {

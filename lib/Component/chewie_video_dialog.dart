@@ -1,13 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:chewie/chewie.dart';
 import 'package:video_player/video_player.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:video_gen_app/Component/round_button.dart';
 import 'package:video_gen_app/Utils/app_colors.dart';
+import 'package:video_gen_app/Utils/video_download_helper.dart';
 
 class ChewieVideoDialog extends StatefulWidget {
   final String videoUrl;
@@ -320,61 +317,11 @@ class _ChewieVideoDialogState extends State<ChewieVideoDialog> {
         _isDownloading = true;
       });
 
-      // Request storage permission
-      if (Platform.isAndroid) {
-        var status = await Permission.storage.request();
-        if (status.isDenied) {
-          _showSnackBar(
-            'Storage permission is required to save video',
-            Colors.red,
-          );
-          return;
-        }
-      }
-
-      _showSnackBar('Starting download...', Colors.blue);
-
-      // Download the video
-      final response = await http.get(Uri.parse(widget.videoUrl));
-
-      if (response.statusCode == 200) {
-        // Get the appropriate directory
-        Directory? directory;
-
-        if (Platform.isAndroid) {
-          // Try to get external storage directory
-          directory = await getExternalStorageDirectory();
-          if (directory != null) {
-            // Create Downloads folder
-            final downloadsDir = Directory('${directory.path}/Downloads');
-            await downloadsDir.create(recursive: true);
-            directory = downloadsDir;
-          }
-        } else if (Platform.isIOS) {
-          directory = await getApplicationDocumentsDirectory();
-        }
-
-        if (directory == null) {
-          _showSnackBar('Unable to access storage', Colors.red);
-          return;
-        }
-
-        // Generate filename
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final filename = 'video_$timestamp.mp4';
-        final filePath = '${directory.path}/$filename';
-
-        // Save file
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-
-        _showSnackBar(
-          'Video saved successfully!\nLocation: ${directory.path}',
-          Colors.green,
-        );
-      } else {
-        _showSnackBar('Failed to download video', Colors.red);
-      }
+      await VideoDownloadHelper.downloadVideo(
+        context: context,
+        videoUrl: widget.videoUrl,
+        fileName: widget.title,
+      );
     } catch (e) {
       _showSnackBar('Download failed: ${e.toString()}', Colors.red);
     } finally {

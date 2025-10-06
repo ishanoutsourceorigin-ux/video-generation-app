@@ -31,7 +31,7 @@ class ProjectService {
         page: 1,
       );
 
-      print('📋 Projects API Response: $response');
+      // print('📋 Projects API Response: $response');
 
       final List<ProjectModel> projects = [];
       if (response['projects'] != null) {

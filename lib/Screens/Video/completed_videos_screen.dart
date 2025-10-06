@@ -3,6 +3,9 @@ import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
 import 'package:video_gen_app/Screens/Project/project_detail_screen.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
+import 'package:video_gen_app/Utils/video_download_helper.dart';
+import 'package:video_gen_app/Component/chewie_video_dialog.dart';
+import 'package:video_gen_app/Component/project_card.dart';
 
 class CompletedVideosScreen extends StatefulWidget {
   const CompletedVideosScreen({super.key});
@@ -271,12 +274,12 @@ class _CompletedVideosScreenState extends State<CompletedVideosScreen> {
 
   Widget _buildProjectGrid() {
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.8,
+      padding: const EdgeInsets.all(20),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
+        childAspectRatio: 0.75,
       ),
       itemCount: _projects.length,
       itemBuilder: (context, index) {
@@ -288,217 +291,142 @@ class _CompletedVideosScreenState extends State<CompletedVideosScreen> {
 
   Widget _buildProjectCard(Map<String, dynamic> project) {
     final status = project['status'] ?? 'unknown';
-    final videoUrl = project['videoUrl'];
-    final thumbnailUrl = project['thumbnailUrl'];
     final title = project['title'] ?? 'Untitled Project';
-    final type = project['type'] ?? 'unknown';
     final createdAt = project['createdAt'] ?? '';
+    final duration = project['duration']?.toString() ?? '0';
+    final thumbnailUrl = project['thumbnailUrl'] ?? '';
+    final projectId = project['id'] ?? project['_id'] ?? '';
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          AnimatedPageRoute(
-            page: ProjectDetailScreen(
-              projectId: project['_id'] ?? '',
-              initialProject: project,
-            ),
+    return ProjectCard(
+      title: title,
+      createdDate: _formatDate(createdAt),
+      duration: '${duration}s',
+      status: status,
+      projectId: projectId,
+      prompt: project['description'],
+      videoUrl: project['videoUrl'],
+      imagePath: thumbnailUrl.isNotEmpty
+          ? thumbnailUrl
+          : 'images/project-card.png',
+      onTap: () => _viewProject(project),
+      onPlay: () => _playVideo(project['videoUrl'] ?? '', title),
+      onDownload: () => _downloadVideo(project['videoUrl'] ?? '', title),
+      onDelete: () => _deleteProject(projectId),
+    );
+  }
+
+  void _viewProject(Map<String, dynamic> project) {
+    Navigator.push(
+      context,
+      AnimatedPageRoute(
+        page: ProjectDetailScreen(
+          projectId: project['_id'] ?? '',
+          initialProject: project,
+        ),
+      ),
+    );
+  }
+
+  void _deleteProject(String projectId) {
+    if (projectId.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.darkGreyColor,
+        title: const Text(
+          'Delete Project',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this project? This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.darkGreyColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Thumbnail/Preview
-            Expanded(
-              flex: 3,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-                child: _buildThumbnail(status, videoUrl, thumbnailUrl),
-              ),
-            ),
-
-            // Project Info
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-
-                    // Status Badge
-                    _buildStatusBadge(status),
-
-                    const Spacer(),
-
-                    // Type and Date
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            type == 'text-based'
-                                ? 'AI Generated'
-                                : 'Avatar Video',
-                            style: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          _formatDate(createdAt),
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _performDelete(projectId);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildThumbnail(
-    String status,
-    String? videoUrl,
-    String? thumbnailUrl,
-  ) {
-    Widget placeholder;
-    Color backgroundColor;
+  Future<void> _performDelete(String projectId) async {
+    try {
+      // Implement actual delete API call here
+      // await ApiService.deleteProject(projectId);
 
-    switch (status) {
-      case 'completed':
-        backgroundColor = Colors.green.withOpacity(0.1);
-        placeholder = const Icon(
-          Icons.play_circle_fill,
-          color: Colors.green,
-          size: 32,
-        );
-        break;
-      case 'processing':
-        backgroundColor = Colors.orange.withOpacity(0.1);
-        placeholder = const CircularProgressIndicator(
-          color: Colors.orange,
-          strokeWidth: 2,
-        );
-        break;
-      case 'failed':
-        backgroundColor = Colors.red.withOpacity(0.1);
-        placeholder = const Icon(Icons.error, color: Colors.red, size: 32);
-        break;
-      default:
-        backgroundColor = Colors.blue.withOpacity(0.1);
-        placeholder = const Icon(
-          Icons.hourglass_empty,
-          color: Colors.blue,
-          size: 32,
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Project deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Refresh the list
+      _loadProjects();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete project: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-
-    return Container(
-      width: double.infinity,
-      color: backgroundColor,
-      child: thumbnailUrl != null && thumbnailUrl.isNotEmpty
-          ? Image.network(
-              thumbnailUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  Center(child: placeholder),
-            )
-          : Center(child: placeholder),
-    );
   }
 
-  Widget _buildStatusBadge(String status) {
-    Color color;
-    String label;
-
-    switch (status) {
-      case 'completed':
-        color = Colors.green;
-        label = 'Ready';
-        break;
-      case 'processing':
-        color = Colors.orange;
-        label = 'Processing';
-        break;
-      case 'failed':
-        color = Colors.red;
-        label = 'Failed';
-        break;
-      case 'pending':
-        color = Colors.blue;
-        label = 'Pending';
-        break;
-      default:
-        color = Colors.grey;
-        label = 'Unknown';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.5), width: 1),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontSize: 9,
-          fontWeight: FontWeight.bold,
+  // Play video in dialog
+  void _playVideo(String videoUrl, String title) {
+    if (videoUrl.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) =>
+            ChewieVideoDialog(videoUrl: videoUrl, title: title),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Video is not available"),
+          backgroundColor: Colors.red,
         ),
-      ),
-    );
+      );
+    }
+  }
+
+  // Download video using VideoDownloadHelper
+  Future<void> _downloadVideo(String videoUrl, String title) async {
+    if (videoUrl.isNotEmpty) {
+      await VideoDownloadHelper.downloadVideo(
+        context: context,
+        videoUrl: videoUrl,
+        fileName: title,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Video is not available for download"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 
   String _formatDate(String dateString) {
-    if (dateString.isEmpty) return '';
+    if (dateString.isEmpty) return 'Unknown';
 
     try {
       final date = DateTime.parse(dateString);
-      final now = DateTime.now();
-      final difference = now.difference(date);
-
-      if (difference.inDays == 0) {
-        return 'Today';
-      } else if (difference.inDays == 1) {
-        return 'Yesterday';
-      } else if (difference.inDays < 7) {
-        return '${difference.inDays}d ago';
-      } else {
-        return '${date.day}/${date.month}/${date.year}';
-      }
+      return '${date.day}/${date.month}/${date.year}';
     } catch (e) {
-      return '';
+      return 'Unknown';
     }
   }
 }

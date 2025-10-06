@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:video_gen_app/Component/project_card.dart';
-import 'package:video_gen_app/Component/download_progress_overlay.dart';
+import 'package:video_gen_app/Utils/video_download_helper.dart';
 import 'package:video_gen_app/Screens/Avatar/create_avatar.dart';
 import 'package:video_gen_app/Screens/Project/project_screen.dart';
 import 'package:video_gen_app/Screens/Project/project_detail_screen.dart';
@@ -125,117 +122,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // Download video method with attractive progress overlay
+  // Download video using the new production-ready service
   Future<void> _downloadVideo(String videoUrl, String projectTitle) async {
-    OverlayEntry? overlayEntry;
-
-    try {
-      // Show attractive download progress overlay
-      overlayEntry = OverlayEntry(
-        builder: (context) => const DownloadProgressOverlay(),
-      );
-      Overlay.of(context).insert(overlayEntry);
-
-      // Get the video data
-      final response = await http.get(Uri.parse(videoUrl));
-
-      if (response.statusCode == 200) {
-        // Get the appropriate directory based on platform
-        Directory? directory;
-
-        if (Platform.isAndroid) {
-          try {
-            final externalDir = await getExternalStorageDirectory();
-            if (externalDir != null) {
-              final appDownloads = Directory('${externalDir.path}/Downloads');
-              await appDownloads.create(recursive: true);
-              directory = appDownloads;
-            }
-          } catch (e) {
-            directory = await getApplicationDocumentsDirectory();
-          }
-        } else if (Platform.isIOS) {
-          directory = await getApplicationDocumentsDirectory();
-        }
-
-        if (directory == null) {
-          overlayEntry.remove();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Unable to access storage directory'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-
-        // Generate filename with timestamp
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final cleanTitle = projectTitle.replaceAll(RegExp(r'[^\w\s-]'), '');
-        final filename = '${cleanTitle}_$timestamp.mp4';
-        final filePath = '${directory.path}/$filename';
-
-        // Write the file
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-
-        // Remove progress overlay
-        overlayEntry.remove();
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Download Complete!',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Saved to: ${directory.path}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 4),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-      } else {
-        overlayEntry.remove();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to download video (${response.statusCode})'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      if (overlayEntry != null) {
-        overlayEntry.remove();
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Download failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      print('Download error: $e');
-    }
+    await VideoDownloadHelper.downloadVideo(
+      context: context,
+      videoUrl: videoUrl,
+      albumName: 'CloneX Videos',
+    );
   }
 
   // Delete project
@@ -710,6 +603,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         prompt: project['description'],
                                         projectId:
                                             project['_id'] ?? project['id'],
+                                        videoUrl:
+                                            project['videoUrl'], // Add Cloudinary video URL
                                         onTap: () {
                                           final projectId =
                                               project['_id'] ?? project['id'];

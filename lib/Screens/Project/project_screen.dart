@@ -4,15 +4,12 @@ import 'package:video_gen_app/Utils/animated_page_route.dart';
 import 'package:video_gen_app/Component/project_card.dart';
 import 'package:video_gen_app/Component/round_button.dart';
 import 'package:video_gen_app/Component/chewie_video_dialog.dart';
-import 'package:video_gen_app/Component/download_progress_overlay.dart';
 import 'package:video_gen_app/Models/project_model.dart';
 import 'package:video_gen_app/Services/project_service.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
 import 'package:video_gen_app/Screens/Video/create_video.dart';
 import 'package:video_gen_app/Screens/Project/project_detail_screen.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
+import 'package:video_gen_app/Utils/video_download_helper.dart';
 
 class ProjectsScreen extends StatefulWidget {
   final bool showAppBar;
@@ -291,127 +288,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     }
   }
 
-  // Download project with attractive progress overlay
+  // Download project using modern VideoDownloadHelper
   Future<void> _downloadProject(ProjectModel project) async {
     if (project.videoUrl != null &&
         project.videoUrl!.isNotEmpty &&
         project.isCompleted) {
-      OverlayEntry? overlayEntry;
-
-      try {
-        // Show attractive download progress overlay
-        overlayEntry = OverlayEntry(
-          builder: (context) => const DownloadProgressOverlay(),
-        );
-        Overlay.of(context).insert(overlayEntry);
-
-        // Get the video data
-        final response = await http.get(Uri.parse(project.videoUrl!));
-
-        if (response.statusCode == 200) {
-          // Get the appropriate directory based on platform
-          Directory? directory;
-
-          if (Platform.isAndroid) {
-            try {
-              final externalDir = await getExternalStorageDirectory();
-              if (externalDir != null) {
-                final appDownloads = Directory('${externalDir.path}/Downloads');
-                await appDownloads.create(recursive: true);
-                directory = appDownloads;
-              }
-            } catch (e) {
-              directory = await getApplicationDocumentsDirectory();
-            }
-          } else if (Platform.isIOS) {
-            directory = await getApplicationDocumentsDirectory();
-          }
-
-          if (directory == null) {
-            if (overlayEntry != null) {
-              overlayEntry.remove();
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Unable to access storage directory'),
-                backgroundColor: Colors.red,
-              ),
-            );
-            return;
-          }
-
-          // Generate filename with timestamp
-          final timestamp = DateTime.now().millisecondsSinceEpoch;
-          final cleanTitle = project.title.replaceAll(RegExp(r'[^\w\s-]'), '');
-          final filename = '${cleanTitle}_$timestamp.mp4';
-          final filePath = '${directory.path}/$filename';
-
-          // Write the file
-          final file = File(filePath);
-          await file.writeAsBytes(response.bodyBytes);
-
-          // Remove progress overlay
-          if (overlayEntry != null) {
-            overlayEntry.remove();
-          }
-
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Download Complete!',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'Saved to: ${directory.path}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 4),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
-        } else {
-          if (overlayEntry != null) {
-            overlayEntry.remove();
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Failed to download video (${response.statusCode})',
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } catch (e) {
-        if (overlayEntry != null) {
-          overlayEntry.remove();
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Download failed: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      await VideoDownloadHelper.downloadVideo(
+        context: context,
+        videoUrl: project.videoUrl!,
+        fileName: project.title,
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -704,6 +590,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               status: project.status,
               projectId: project.id,
               prompt: project.description,
+              videoUrl: project.videoUrl, // Add videoUrl parameter
               imagePath:
                   project.type == 'avatar-based' &&
                       project.avatarImageUrl != null &&

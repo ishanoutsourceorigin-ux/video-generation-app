@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../Utils/video_download_helper.dart';
 
 class ProjectCard extends StatelessWidget {
   final String title;
@@ -10,6 +11,7 @@ class ProjectCard extends StatelessWidget {
   final String? prompt; // User's prompt/description
   final VoidCallback onPlay;
   final VoidCallback onDownload;
+  final String? videoUrl; // Cloudinary video URL
   final VoidCallback onDelete;
   final VoidCallback? onTap;
 
@@ -22,6 +24,7 @@ class ProjectCard extends StatelessWidget {
     this.status,
     this.projectId,
     this.prompt,
+    this.videoUrl,
     required this.onPlay,
     required this.onDownload,
     required this.onDelete,
@@ -73,6 +76,20 @@ class ProjectCard extends StatelessWidget {
         return Colors.orange;
       default:
         return Colors.grey;
+    }
+  }
+
+  /// Handle download from Cloudinary URL
+  void _handleCloudinaryDownload(BuildContext context) {
+    if (videoUrl != null && videoUrl!.isNotEmpty) {
+      VideoDownloadHelper.downloadVideo(
+        context: context,
+        videoUrl: videoUrl!,
+        albumName: 'CloneX Videos',
+      );
+    } else {
+      // Fallback to original download callback
+      onDownload();
     }
   }
 
@@ -347,7 +364,7 @@ class ProjectCard extends StatelessWidget {
                     children: [
                       _buildImageActionButton(
                         imageAsset: "images/download-icon.png",
-                        onTap: onDownload,
+                        onTap: () => _handleCloudinaryDownload(context),
                         iconSize: iconSize + 4,
                         padding: buttonPadding,
                         label: "Download",
