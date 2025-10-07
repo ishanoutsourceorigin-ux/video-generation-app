@@ -162,7 +162,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       'Create Your Account',
                       style: TextStyle(
                         fontSize: isTablet ? 22 : 20,
-                        color: AppColors.whiteColor.withOpacity(0.8),
+                        color: AppColors.whiteColor.withValues(alpha: 0.8),
                         fontFamily: "Eurostile",
                       ),
                     ),

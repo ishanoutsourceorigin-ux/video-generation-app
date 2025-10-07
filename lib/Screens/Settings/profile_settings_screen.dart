@@ -76,7 +76,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   color: AppColors.darkGreyColor,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
+                    color: AppColors.greyColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(
@@ -85,8 +85,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       children: [
                         CircleAvatar(
                           radius: 50,
-                          backgroundColor: AppColors.purpleColor.withOpacity(
-                            0.2,
+                          backgroundColor: AppColors.purpleColor.withValues(
+                            alpha: 0.2,
                           ),
                           child: _isImageUploading
                               ? const CircularProgressIndicator(
@@ -188,7 +188,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   color: AppColors.darkGreyColor,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
+                    color: AppColors.greyColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(
@@ -220,7 +220,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       textEditingController: _nameController,
                       inputType: TextInputType.text,
                       bgColor: AppColors.appBgColor,
-                      enabledBorderColor: AppColors.greyColor.withOpacity(0.3),
+                      enabledBorderColor: AppColors.greyColor.withValues(
+                        alpha: 0.3,
+                      ),
                       focusedBorderColor: AppColors.purpleColor,
                     ),
 
@@ -239,10 +241,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.greyColor.withOpacity(0.1),
+                        color: AppColors.greyColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.greyColor.withOpacity(0.3),
+                          color: AppColors.greyColor.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -288,10 +290,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.blueColor.withOpacity(0.1),
+                  color: AppColors.blueColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.blueColor.withOpacity(0.3),
+                    color: AppColors.blueColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(

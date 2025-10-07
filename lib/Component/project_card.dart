@@ -179,10 +179,13 @@ class ProjectCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
+          border: Border.all(
+            color: Colors.grey.withValues(alpha: 0.2),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -202,8 +205,8 @@ class ProjectCard extends StatelessWidget {
                 ),
                 gradient: LinearGradient(
                   colors: [
-                    Colors.purple.withOpacity(0.3),
-                    Colors.blue.withOpacity(0.3),
+                    Colors.purple.withValues(alpha: 0.3),
+                    Colors.blue.withValues(alpha: 0.3),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -247,7 +250,7 @@ class ProjectCard extends StatelessWidget {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            Colors.black.withOpacity(0.6),
+                            Colors.black.withValues(alpha: 0.6),
                           ],
                         ),
                       ),
@@ -269,10 +272,10 @@ class ProjectCard extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: _getStatusColor(
                                   status!,
-                                ).withOpacity(0.9),
+                                ).withValues(alpha: 0.9),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white.withValues(alpha: 0.2),
                                   width: 1,
                                 ),
                               ),
@@ -294,10 +297,10 @@ class ProjectCard extends StatelessWidget {
                           //     vertical: isTablet ? 6 : 4,
                           //   ),
                           //   decoration: BoxDecoration(
-                          //     color: Colors.black.withOpacity(0.8),
+                          //     color: Colors.black.withValues(alpha: 0.8),
                           //     borderRadius: BorderRadius.circular(20),
                           //     border: Border.all(
-                          //       color: Colors.white.withOpacity(0.2),
+                          //       color: Colors.white.withValues(alpha: 0.2),
                           //       width: 1,
                           //     ),
                           //   ),

@@ -89,7 +89,7 @@ class _CreateVideoState extends State<CreateVideo> {
                   color: AppColors.darkGreyColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
+                    color: AppColors.greyColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -130,7 +130,7 @@ class _CreateVideoState extends State<CreateVideo> {
         decoration: BoxDecoration(
           color: AppColors.darkGreyColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+          border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [

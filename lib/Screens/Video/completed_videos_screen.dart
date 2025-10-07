@@ -99,7 +99,7 @@ class _CompletedVideosScreenState extends State<CompletedVideosScreen> {
       decoration: BoxDecoration(
         color: AppColors.darkGreyColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+        border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -149,7 +149,7 @@ class _CompletedVideosScreenState extends State<CompletedVideosScreen> {
               //     ),
               //     decoration: BoxDecoration(
               //       color: isSelected
-              //           ? Colors.white.withOpacity(0.2)
+              //           ? Colors.white.withValues(alpha: 0.2)
               //           : AppColors.purpleColor,
               //       borderRadius: BorderRadius.circular(10),
               //     ),

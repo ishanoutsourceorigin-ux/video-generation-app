@@ -170,7 +170,7 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                 textEditingController: _titleController,
                 inputType: TextInputType.text,
                 bgColor: AppColors.darkGreyColor,
-                enabledBorderColor: AppColors.greyColor.withOpacity(0.3),
+                enabledBorderColor: AppColors.greyColor.withValues(alpha: 0.3),
                 focusedBorderColor: AppColors.purpleColor,
               ),
               const SizedBox(height: 24),
@@ -190,7 +190,7 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                   color: AppColors.darkGreyColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
+                    color: AppColors.greyColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: TextField(
@@ -231,7 +231,7 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                   color: AppColors.darkGreyColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
+                    color: AppColors.greyColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -288,7 +288,7 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                   color: AppColors.darkGreyColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
+                    color: AppColors.greyColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -339,7 +339,7 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                 leadingIcon: _isGenerating ? null : Icons.videocam,
                 leadingIconColor: Colors.white,
                 bgColor: _isGenerating
-                    ? AppColors.greyColor.withOpacity(0.5)
+                    ? AppColors.greyColor.withValues(alpha: 0.5)
                     : AppColors.purpleColor,
                 borderRadius: 12,
                 fontSize: 16,
@@ -369,10 +369,10 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.blueColor.withOpacity(0.1),
+                  color: AppColors.blueColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.blueColor.withOpacity(0.3),
+                    color: AppColors.blueColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(

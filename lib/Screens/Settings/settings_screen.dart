@@ -34,13 +34,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 border: Border.all(color: const Color(0xFF2A2A3E), width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 24,
                     offset: const Offset(0, 12),
                     spreadRadius: 0,
                   ),
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                     spreadRadius: 0,
@@ -62,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
+                            color: Colors.black.withValues(alpha: 0.12),
                             blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
@@ -232,7 +232,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: ElevatedButton(
                       onPressed: _showLogoutConfirmation,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.withOpacity(0.1),
+                        backgroundColor: Colors.red.withValues(alpha: 0.1),
                         side: BorderSide(
                           color: Colors.red.shade400,
                           width: 1.5,
@@ -285,10 +285,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       decoration: BoxDecoration(
         color: AppColors.darkGreyColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.greyColor.withOpacity(0.1)),
+        border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -306,7 +306,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.purpleColor.withOpacity(0.15),
+                    color: AppColors.purpleColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: AppColors.purpleColor, size: 24),
@@ -437,7 +437,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.purpleColor.withOpacity(0.2),
+                  color: AppColors.purpleColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -473,10 +473,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.purpleColor.withOpacity(0.1),
+                  color: AppColors.purpleColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.purpleColor.withOpacity(0.3),
+                    color: AppColors.purpleColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(
@@ -525,7 +525,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   horizontal: 20,
                   vertical: 10,
                 ),
-                backgroundColor: AppColors.purpleColor.withOpacity(0.1),
+                backgroundColor: AppColors.purpleColor.withValues(alpha: 0.1),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

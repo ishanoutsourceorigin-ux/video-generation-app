@@ -247,12 +247,12 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
           gradient: LinearGradient(
             colors: status == 'active'
                 ? [
-                    AppColors.purpleColor.withOpacity(0.1),
-                    AppColors.blueColor.withOpacity(0.05),
+                    AppColors.purpleColor.withValues(alpha: 0.1),
+                    AppColors.blueColor.withValues(alpha: 0.05),
                   ]
                 : [
                     AppColors.darkGreyColor,
-                    AppColors.darkGreyColor.withOpacity(0.8),
+                    AppColors.darkGreyColor.withValues(alpha: 0.8),
                   ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -260,13 +260,13 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: status == 'active'
-                ? AppColors.purpleColor.withOpacity(0.3)
-                : AppColors.greyColor.withOpacity(0.2),
+                ? AppColors.purpleColor.withValues(alpha: 0.3)
+                : AppColors.greyColor.withValues(alpha: 0.2),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -291,7 +291,7 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.purpleColor.withOpacity(0.3),
+                          color: AppColors.purpleColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -393,17 +393,17 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: status == 'active'
-                                ? Colors.green.withOpacity(0.15)
+                                ? Colors.green.withValues(alpha: 0.15)
                                 : status == 'processing'
-                                ? Colors.orange.withOpacity(0.15)
-                                : Colors.red.withOpacity(0.15),
+                                ? Colors.orange.withValues(alpha: 0.15)
+                                : Colors.red.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: status == 'active'
-                                  ? Colors.green.withOpacity(0.3)
+                                  ? Colors.green.withValues(alpha: 0.3)
                                   : status == 'processing'
-                                  ? Colors.orange.withOpacity(0.3)
-                                  : Colors.red.withOpacity(0.3),
+                                  ? Colors.orange.withValues(alpha: 0.3)
+                                  : Colors.red.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -497,7 +497,7 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.purpleColor.withOpacity(0.4),
+                          color: AppColors.purpleColor.withValues(alpha: 0.4),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -516,10 +516,10 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.2),
+                    color: Colors.orange.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.orange.withOpacity(0.3),
+                      color: Colors.orange.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
@@ -574,7 +574,7 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
           color: AppColors.darkGreyColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: AppColors.purpleColor.withOpacity(0.3),
+            color: AppColors.purpleColor.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -614,7 +614,7 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.purpleColor.withOpacity(0.3),
+                    color: AppColors.purpleColor.withValues(alpha: 0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -677,17 +677,17 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: status == 'active'
-                    ? Colors.green.withOpacity(0.15)
+                    ? Colors.green.withValues(alpha: 0.15)
                     : status == 'processing'
-                    ? Colors.orange.withOpacity(0.15)
-                    : Colors.red.withOpacity(0.15),
+                    ? Colors.orange.withValues(alpha: 0.15)
+                    : Colors.red.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: status == 'active'
-                      ? Colors.green.withOpacity(0.3)
+                      ? Colors.green.withValues(alpha: 0.3)
                       : status == 'processing'
-                      ? Colors.orange.withOpacity(0.3)
-                      : Colors.red.withOpacity(0.3),
+                      ? Colors.orange.withValues(alpha: 0.3)
+                      : Colors.red.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -783,7 +783,7 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.2),
+                        color: Colors.grey.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(

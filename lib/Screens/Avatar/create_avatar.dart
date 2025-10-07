@@ -145,7 +145,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
                         : Container(
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                             ),
                             child: const Icon(
                               Icons.edit,
@@ -170,10 +170,10 @@ class _CreateAvatarState extends State<CreateAvatar> {
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.blueColor.withOpacity(0.1),
+                      color: AppColors.blueColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: AppColors.blueColor.withOpacity(0.3),
+                        color: AppColors.blueColor.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -225,7 +225,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
                 textEditingController: _nameController,
                 inputType: TextInputType.text,
                 bgColor: AppColors.darkGreyColor,
-                enabledBorderColor: AppColors.greyColor.withOpacity(0.3),
+                enabledBorderColor: AppColors.greyColor.withValues(alpha: 0.3),
                 focusedBorderColor: AppColors.purpleColor,
               ),
               const SizedBox(height: 24),
@@ -246,7 +246,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
                 textEditingController: _professionController,
                 inputType: TextInputType.text,
                 bgColor: AppColors.darkGreyColor,
-                enabledBorderColor: AppColors.greyColor.withOpacity(0.3),
+                enabledBorderColor: AppColors.greyColor.withValues(alpha: 0.3),
                 focusedBorderColor: AppColors.purpleColor,
               ),
               const SizedBox(height: 24),
@@ -301,9 +301,11 @@ class _CreateAvatarState extends State<CreateAvatar> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: _isRecording
-                                ? Colors.red.withOpacity(0.1)
+                                ? Colors.red.withValues(alpha: 0.1)
                                 : (_isHolding
-                                      ? AppColors.purpleColor.withOpacity(0.1)
+                                      ? AppColors.purpleColor.withValues(
+                                          alpha: 0.1,
+                                        )
                                       : AppColors.darkGreyColor),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
@@ -311,7 +313,9 @@ class _CreateAvatarState extends State<CreateAvatar> {
                                   ? Colors.red
                                   : (_voiceSource == 'recorded'
                                         ? AppColors.purpleColor
-                                        : AppColors.greyColor.withOpacity(0.3)),
+                                        : AppColors.greyColor.withValues(
+                                            alpha: 0.3,
+                                          )),
                               width: _isRecording || _voiceSource == 'recorded'
                                   ? 2
                                   : 1,
@@ -336,7 +340,9 @@ class _CreateAvatarState extends State<CreateAvatar> {
                                         height: 32,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: Colors.red.withOpacity(0.2),
+                                          color: Colors.red.withValues(
+                                            alpha: 0.2,
+                                          ),
                                         ),
                                       ),
                                     AnimatedContainer(
@@ -407,7 +413,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
                             border: Border.all(
                               color: _voiceSource == 'uploaded'
                                   ? AppColors.purpleColor
-                                  : AppColors.greyColor.withOpacity(0.3),
+                                  : AppColors.greyColor.withValues(alpha: 0.3),
                               width: _voiceSource == 'uploaded' ? 2 : 1,
                             ),
                           ),
@@ -463,10 +469,10 @@ class _CreateAvatarState extends State<CreateAvatar> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.purpleColor.withOpacity(0.1),
+                    color: AppColors.purpleColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: AppColors.purpleColor.withOpacity(0.3),
+                      color: AppColors.purpleColor.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
@@ -510,10 +516,10 @@ class _CreateAvatarState extends State<CreateAvatar> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.blueColor.withOpacity(0.1),
+                  color: AppColors.blueColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: AppColors.blueColor.withOpacity(0.3),
+                    color: AppColors.blueColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -565,7 +571,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
                 leadingIcon: _isCreating ? null : Icons.add_circle,
                 leadingIconColor: Colors.white,
                 bgColor: _isCreating
-                    ? AppColors.greyColor.withOpacity(0.5)
+                    ? AppColors.greyColor.withValues(alpha: 0.5)
                     : AppColors.purpleColor,
                 borderRadius: 12,
                 fontSize: 16,
@@ -577,7 +583,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
               RoundButton(
                 title: "Cancel",
                 onPress: () => Navigator.pop(context),
-                bgColor: AppColors.greyColor.withOpacity(0.3),
+                bgColor: AppColors.greyColor.withValues(alpha: 0.3),
                 borderRadius: 12,
                 fontSize: 16,
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -599,7 +605,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
       decoration: BoxDecoration(
         color: AppColors.darkGreyColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+        border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.3)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -763,7 +769,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
           final fileSize = await recordedFile.length();
 
           print("🎵 Recording saved to: $recordedPath");
-          print("📁 File size: ${fileSize} bytes");
+          print("📁 File size: $fileSize bytes");
           print("📂 File exists: ${await recordedFile.exists()}");
           print("🎧 File extension: ${recordedFile.path.split('.').last}");
 
@@ -901,7 +907,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
             margin: const EdgeInsets.symmetric(horizontal: 40),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.8),
+              color: Colors.black.withValues(alpha: 0.8),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.red, width: 2),
             ),

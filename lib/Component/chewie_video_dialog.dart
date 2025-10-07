@@ -119,7 +119,7 @@ class _ChewieVideoDialogState extends State<ChewieVideoDialog> {
         decoration: BoxDecoration(
           color: AppColors.darkGreyColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+          border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -148,7 +148,7 @@ class _ChewieVideoDialogState extends State<ChewieVideoDialog> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppColors.greyColor.withOpacity(0.3)),
+          bottom: BorderSide(color: AppColors.greyColor.withValues(alpha: 0.3)),
         ),
       ),
       child: Row(

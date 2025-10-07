@@ -28,7 +28,6 @@ class ProjectStatusService {
     if (_isPolling) return;
 
     // Temporarily disabled to prevent rate limiting during development
-    // TODO: Re-enable after optimizing polling strategy
     return;
 
     // _isPolling = true;

@@ -346,7 +346,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.darkGreyColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+        border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,9 +420,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -451,9 +451,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(
         label,
@@ -512,7 +512,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.darkGreyColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+        border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -583,7 +583,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.darkGreyColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+        border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -634,7 +634,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             decoration: BoxDecoration(
               color: Colors.black,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+              border: Border.all(
+                color: AppColors.greyColor.withValues(alpha: 0.3),
+              ),
               image: thumbnailUrl.isNotEmpty
                   ? DecorationImage(
                       image: NetworkImage(thumbnailUrl),
@@ -653,9 +655,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                     borderRadius: BorderRadius.circular(12),
                     gradient: LinearGradient(
                       colors: [
-                        Colors.black.withOpacity(0.3),
+                        Colors.black.withValues(alpha: 0.3),
                         Colors.transparent,
-                        Colors.black.withOpacity(0.3),
+                        Colors.black.withValues(alpha: 0.3),
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -667,7 +669,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
+                      color: Colors.black.withValues(alpha: 0.7),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -687,7 +689,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                 //       vertical: 4,
                 //     ),
                 //     decoration: BoxDecoration(
-                //       color: Colors.black.withOpacity(0.8),
+                //       color: Colors.black.withValues(alpha: 0.8),
                 //       borderRadius: BorderRadius.circular(4),
                 //     ),
                 //     child: Text(
@@ -710,7 +712,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                 //       vertical: 4,
                 //     ),
                 //     decoration: BoxDecoration(
-                //       color: AppColors.purpleColor.withOpacity(0.9),
+                //       color: AppColors.purpleColor.withValues(alpha: 0.9),
                 //       borderRadius: BorderRadius.circular(4),
                 //     ),
                 //     child: Text(
@@ -734,7 +736,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         //   decoration: BoxDecoration(
         //     color: AppColors.appBgColor,
         //     borderRadius: BorderRadius.circular(8),
-        //     border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+        //     border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.3)),
         //   ),
         //   child: Row(
         //     children: [
@@ -803,9 +805,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     return Container(
       height: 200,
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.1),
+        color: Colors.orange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
       ),
       child: const Center(
         child: Column(
@@ -835,9 +837,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     return Container(
       height: 200,
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: Center(
         child: Column(
@@ -864,9 +866,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     return Container(
       height: 200,
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
+        color: Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
       ),
       child: const Center(
         child: Column(
@@ -897,7 +899,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.darkGreyColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.greyColor.withOpacity(0.3)),
+        border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -977,7 +979,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             title: _isRetrying ? 'Retrying...' : 'Retry Generation',
             onPress: _isRetrying ? () {} : () async => await _retryProject(),
             bgColor: _isRetrying
-                ? AppColors.greyColor.withOpacity(0.5)
+                ? AppColors.greyColor.withValues(alpha: 0.5)
                 : Colors.orange,
             fontSize: 16,
             leadingIcon: _isRetrying ? null : Icons.refresh,
@@ -989,8 +991,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
           title: _isDeleting ? 'Deleting...' : 'Delete Project',
           onPress: _isDeleting ? () {} : () async => await _deleteProject(),
           bgColor: _isDeleting
-              ? AppColors.greyColor.withOpacity(0.5)
-              : Colors.red.withOpacity(0.8),
+              ? AppColors.greyColor.withValues(alpha: 0.5)
+              : Colors.red.withValues(alpha: 0.8),
           fontSize: 16,
           leadingIcon: _isDeleting ? null : Icons.delete,
           padding: const EdgeInsets.symmetric(vertical: 16),

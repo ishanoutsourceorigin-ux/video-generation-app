@@ -61,7 +61,7 @@ class _Veo3VideoScreenState extends State<Veo3VideoScreen> {
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.purpleColor.withOpacity(0.2),
+              color: AppColors.purpleColor.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.purpleColor),
             ),
@@ -118,13 +118,13 @@ class _Veo3VideoScreenState extends State<Veo3VideoScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      AppColors.purpleColor.withOpacity(0.1),
-                      AppColors.blueColor.withOpacity(0.1),
+                      AppColors.purpleColor.withValues(alpha: 0.1),
+                      AppColors.blueColor.withValues(alpha: 0.1),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.purpleColor.withOpacity(0.3),
+                    color: AppColors.purpleColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(
@@ -182,7 +182,7 @@ class _Veo3VideoScreenState extends State<Veo3VideoScreen> {
                 textEditingController: _titleController,
                 inputType: TextInputType.text,
                 bgColor: AppColors.darkGreyColor,
-                enabledBorderColor: AppColors.greyColor.withOpacity(0.3),
+                enabledBorderColor: AppColors.greyColor.withValues(alpha: 0.3),
                 focusedBorderColor: AppColors.purpleColor,
               ),
               const SizedBox(height: 24),
@@ -202,7 +202,7 @@ class _Veo3VideoScreenState extends State<Veo3VideoScreen> {
                   color: AppColors.darkGreyColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
+                    color: AppColors.greyColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: TextField(
@@ -258,7 +258,7 @@ class _Veo3VideoScreenState extends State<Veo3VideoScreen> {
                   color: AppColors.darkGreyColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
+                    color: AppColors.greyColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -308,7 +308,7 @@ class _Veo3VideoScreenState extends State<Veo3VideoScreen> {
                   color: AppColors.darkGreyColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.greyColor.withOpacity(0.3),
+                    color: AppColors.greyColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(
@@ -334,11 +334,12 @@ class _Veo3VideoScreenState extends State<Veo3VideoScreen> {
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         activeTrackColor: AppColors.purpleColor,
-                        inactiveTrackColor: AppColors.greyColor.withOpacity(
-                          0.3,
+                        inactiveTrackColor: AppColors.greyColor.withValues(alpha: 0.3,
                         ),
                         thumbColor: AppColors.purpleColor,
-                        overlayColor: AppColors.purpleColor.withOpacity(0.2),
+                        overlayColor: AppColors.purpleColor.withValues(
+                          alpha: 0.2,
+                        ),
                       ),
                       child: Slider(
                         value: _selectedDuration.toDouble(),
@@ -380,7 +381,7 @@ class _Veo3VideoScreenState extends State<Veo3VideoScreen> {
                 textEditingController: _seedController,
                 inputType: TextInputType.number,
                 bgColor: AppColors.darkGreyColor,
-                enabledBorderColor: AppColors.greyColor.withOpacity(0.3),
+                enabledBorderColor: AppColors.greyColor.withValues(alpha: 0.3),
                 focusedBorderColor: AppColors.purpleColor,
               ),
               const SizedBox(height: 8),
@@ -399,7 +400,7 @@ class _Veo3VideoScreenState extends State<Veo3VideoScreen> {
                 leadingIcon: _isGenerating ? null : Icons.auto_awesome,
                 leadingIconColor: Colors.white,
                 bgColor: _isGenerating
-                    ? AppColors.greyColor.withOpacity(0.5)
+                    ? AppColors.greyColor.withValues(alpha: 0.5)
                     : AppColors.purpleColor,
                 borderRadius: 12,
                 fontSize: 16,
@@ -429,9 +430,11 @@ class _Veo3VideoScreenState extends State<Veo3VideoScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -125,7 +125,7 @@ class _CreateAiAvatarScreenState extends State<CreateAiAvatarScreen> {
                         decoration: BoxDecoration(
                           color: currentPage == index
                               ? const Color(0xFF6366F1)
-                              : Colors.white.withOpacity(0.3),
+                              : Colors.white.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -147,7 +147,7 @@ class _CreateAiAvatarScreenState extends State<CreateAiAvatarScreen> {
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF6366F1).withOpacity(0.3),
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.3),
                           blurRadius: 15,
                           offset: const Offset(0, 8),
                         ),

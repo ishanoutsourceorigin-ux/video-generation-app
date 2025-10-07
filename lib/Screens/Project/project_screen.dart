@@ -671,7 +671,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           border: Border.all(
             color: isSelected
                 ? AppColors.purpleColor
-                : AppColors.greyColor.withOpacity(0.3),
+                : AppColors.greyColor.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -691,8 +691,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? Colors.white.withOpacity(0.2)
-                      : AppColors.greyColor.withOpacity(0.3),
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : AppColors.greyColor.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(

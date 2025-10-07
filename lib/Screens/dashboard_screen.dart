@@ -264,7 +264,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
+                          color: Colors.black.withValues(alpha: 0.12),
                           blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),
@@ -378,7 +378,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           }
 
                           return _isLoadingStats
-                              ? Container(
+                              ? SizedBox(
                                   height: 200,
                                   child: Center(
                                     child: CircularProgressIndicator(
@@ -387,7 +387,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 )
                               : _errorMessage.isNotEmpty
-                              ? Container(
+                              ? SizedBox(
                                   height: 200,
                                   child: Center(
                                     child: Column(

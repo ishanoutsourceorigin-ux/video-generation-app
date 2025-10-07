@@ -26,7 +26,7 @@ class DownloadProgressOverlay extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.blueColor.withOpacity(0.2),
+                  color: AppColors.blueColor.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

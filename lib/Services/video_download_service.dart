@@ -161,8 +161,9 @@ class VideoDownloadService {
   static String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
@@ -298,12 +299,12 @@ class _DownloadDialogState extends State<_DownloadDialog> {
           color: const Color(0xFF1A1D2E), // Darker background matching your app
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFF3A3D4A).withOpacity(0.3),
+            color: const Color(0xFF3A3D4A).withValues(alpha: 0.3),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -346,7 +347,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
                                         : _currentStatus.contains('Failed')
                                         ? Colors.red
                                         : const Color(0xFF4C6EF5))
-                                    .withOpacity(0.3),
+                                    .withValues(alpha: 0.3),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -391,7 +392,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
                     color: const Color(0xFF2A2D3A),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       width: 1,
                     ),
                   ),
@@ -457,13 +458,13 @@ class _DownloadDialogState extends State<_DownloadDialog> {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: _isSuccess
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.red.withOpacity(0.1),
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: _isSuccess
-                          ? Colors.green.withOpacity(0.3)
-                          : Colors.red.withOpacity(0.3),
+                          ? Colors.green.withValues(alpha: 0.3)
+                          : Colors.red.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),

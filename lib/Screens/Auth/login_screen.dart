@@ -151,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Sign in to Continue',
                       style: TextStyle(
                         fontSize: isTablet ? 22 : 20,
-                        color: AppColors.whiteColor.withOpacity(0.8),
+                        color: AppColors.whiteColor.withValues(alpha: 0.8),
                         fontFamily: "Eurostile",
                       ),
                     ),
