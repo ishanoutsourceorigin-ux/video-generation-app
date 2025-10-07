@@ -318,8 +318,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     const SizedBox(height: 12),
                     Text(
                       "• Account created: ${user?.metadata.creationTime?.toString().split(' ')[0] ?? 'Unknown'}\n"
-                      "• Last sign in: ${user?.metadata.lastSignInTime?.toString().split(' ')[0] ?? 'Unknown'}\n"
-                      "• Account verified: ${user?.emailVerified == true ? 'Yes' : 'No'}",
+                      "• Last sign in: ${user?.metadata.lastSignInTime?.toString().split(' ')[0] ?? 'Unknown'}\n",
+                      // "• Account verified: ${user?.emailVerified == true ? 'Yes' : 'No'}",
                       style: TextStyle(
                         color: Colors.grey.shade300,
                         fontSize: 12,

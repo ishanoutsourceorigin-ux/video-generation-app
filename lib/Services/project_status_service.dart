@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:video_gen_app/Services/Api/api_service.dart';
+// import 'package:video_gen_app/Services/Api/api_service.dart';
 
 class ProjectStatusService {
   static final ProjectStatusService _instance =
@@ -42,24 +42,24 @@ class ProjectStatusService {
     _isPolling = false;
   }
 
-  Future<void> _checkProjectStatus() async {
-    try {
-      final response = await ApiService.getProjects(status: 'processing');
-      final projects = List<Map<String, dynamic>>.from(
-        response['projects'] ?? [],
-      );
+  // Future<void> _checkProjectStatus() async {
+  //   try {
+  //     final response = await ApiService.getProjects(status: 'processing');
+  //     final projects = List<Map<String, dynamic>>.from(
+  //       response['projects'] ?? [],
+  //     );
 
-      for (final project in projects) {
-        // Notify all listeners about project updates
-        for (final listener in _listeners) {
-          listener(project);
-        }
-      }
-    } catch (e) {
-      // Handle error silently in background
-      print('Status polling error: $e');
-    }
-  }
+  //     for (final project in projects) {
+  //       // Notify all listeners about project updates
+  //       for (final listener in _listeners) {
+  //         listener(project);
+  //       }
+  //     }
+  //   } catch (e) {
+  //     // Handle error silently in background
+  //     print('Status polling error: $e');
+  //   }
+  // }
 
   void dispose() {
     _stopPolling();

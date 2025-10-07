@@ -9,6 +9,7 @@ import 'package:video_gen_app/Services/Api/api_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
+import 'package:flutter_sound/flutter_sound.dart';
 
 class CreateAvatar extends StatefulWidget {
   const CreateAvatar({super.key});
@@ -25,6 +26,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
   File? _selectedVoice;
   final ImagePicker _picker = ImagePicker();
   bool _isCreating = false;
+  FlutterSoundRecorder? _audioRecorder;
 
   // Voice recording variables
   bool _isRecording = false;
@@ -33,6 +35,18 @@ class _CreateAvatarState extends State<CreateAvatar> {
   Timer? _timer;
   String _voiceSource = 'none'; // 'none', 'recorded', 'uploaded'
   OverlayEntry? _recordingOverlay;
+  String? _recordedFilePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeRecorder();
+  }
+
+  Future<void> _initializeRecorder() async {
+    _audioRecorder = FlutterSoundRecorder();
+    await _audioRecorder!.openRecorder();
+  }
 
   @override
   void dispose() {
@@ -40,6 +54,7 @@ class _CreateAvatarState extends State<CreateAvatar> {
     _professionController.dispose();
     _timer?.cancel();
     _hideRecordingOverlay();
+    _audioRecorder?.closeRecorder();
     super.dispose();
   }
 
@@ -671,11 +686,24 @@ class _CreateAvatarState extends State<CreateAvatar> {
       // Request microphone permission
       final permission = await Permission.microphone.request();
       if (!permission.isGranted) {
+        print("❌ Microphone permission denied");
         _showError("Microphone permission required for voice recording");
         return;
       }
+      print("✅ Microphone permission granted");
 
       print("🎙️ Starting recording...");
+
+      // Get application documents directory for recording
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      _recordedFilePath = '${directory.path}/recorded_voice_$timestamp.aac';
+
+      // Start recording with AAC format (compatible and converts to MP3 on Cloudinary)
+      await _audioRecorder!.startRecorder(
+        toFile: _recordedFilePath!,
+        codec: Codec.aacMP4,
+      );
 
       setState(() {
         _isRecording = true;
@@ -700,15 +728,14 @@ class _CreateAvatarState extends State<CreateAvatar> {
       // Show recording overlay
       _showRecordingOverlay();
 
-      // Haptic feedback
-      try {
-        // Add vibration feedback if available
-      } catch (e) {
-        // Ignore if haptic feedback not available
-      }
+      print("🎙️ Recording started to: $_recordedFilePath");
     } catch (e) {
       print("Error starting recording: $e");
       _showError("Failed to start recording: $e");
+      setState(() {
+        _isRecording = false;
+        _isHolding = false;
+      });
     }
   }
 
@@ -718,6 +745,9 @@ class _CreateAvatarState extends State<CreateAvatar> {
     try {
       print("🛑 Stopping recording... Duration: ${_recordDuration.inSeconds}s");
 
+      // Stop the actual recording
+      final recordedPath = await _audioRecorder!.stopRecorder();
+
       _timer?.cancel();
       _hideRecordingOverlay();
 
@@ -726,41 +756,59 @@ class _CreateAvatarState extends State<CreateAvatar> {
         _isHolding = false;
       });
 
-      // Check if recording was long enough (simulate recording)
+      // Check if recording was long enough
       if (_recordDuration.inSeconds >= 3) {
-        // Create a dummy file to simulate recording
-        final directory = await getTemporaryDirectory();
-        final file = File(
-          '${directory.path}/recorded_voice_${DateTime.now().millisecondsSinceEpoch}.m4a',
-        );
-        await file.writeAsString(
-          'simulated_recording_data_${_recordDuration.inSeconds}s',
-        );
+        if (recordedPath != null && await File(recordedPath).exists()) {
+          final recordedFile = File(recordedPath);
+          final fileSize = await recordedFile.length();
 
-        setState(() {
-          _selectedVoice = file;
-          _voiceSource = 'recorded';
-        });
+          print("🎵 Recording saved to: $recordedPath");
+          print("📁 File size: ${fileSize} bytes");
+          print("📂 File exists: ${await recordedFile.exists()}");
+          print("🎧 File extension: ${recordedFile.path.split('.').last}");
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Text("Voice recorded (${_recordDuration.inSeconds}s)"),
-              ],
+          // Check if file has content
+          if (fileSize > 0) {
+            setState(() {
+              _selectedVoice = recordedFile;
+              _voiceSource = 'recorded';
+            });
+          } else {
+            print("❌ Recorded file is empty!");
+            _showError("Recording failed - file is empty");
+            return;
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text("Voice recorded (${_recordDuration.inSeconds}s)"),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+          );
+        } else {
+          _showError("Recording failed - no audio file created");
+          setState(() {
+            _recordDuration = Duration.zero;
+          });
+        }
       } else if (_recordDuration.inSeconds > 0 &&
           _recordDuration.inSeconds < 3) {
         _showError("Recording too short! Hold for at least 3 seconds.");
         setState(() {
           _recordDuration = Duration.zero;
         });
+
+        // Clean up the short recording file
+        if (recordedPath != null && await File(recordedPath).exists()) {
+          await File(recordedPath).delete();
+        }
       }
     } catch (e) {
       print("Error stopping recording: $e");

@@ -503,9 +503,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 8),
                     Text(
                       '• Version: 1.0.0\n'
-                      '• Build: 2025.01\n'
-                      '• Developed with Flutter\n'
-                      '• Powered by AI Technology',
+                      '• Build: 2025.01\n',
+                      // '• Developed with Flutter\n'
+                      // '• Powered by AI Technology',
                       style: TextStyle(
                         color: Colors.grey.shade300,
                         fontSize: 12,

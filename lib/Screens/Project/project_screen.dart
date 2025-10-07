@@ -752,19 +752,32 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: isTablet ? 32 : 24),
-              RoundButton(
-                title: "Create Your First Project",
-                onPress: () {
-                  Navigator.push(
-                    context,
-                    AnimatedPageRoute(page: const CreateVideo()),
-                  );
-                },
-                leadingIcon: Icons.add,
-                leadingIconColor: Colors.white,
-                bgColor: AppColors.purpleColor,
-                borderRadius: isTablet ? 16 : 12,
-                fontSize: isTablet ? 18 : 16,
+              Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isTablet ? 400 : double.infinity,
+                  ),
+                  child: RoundButton(
+                    title: isTablet
+                        ? "Create Your First Project"
+                        : "Create Project",
+                    onPress: () {
+                      Navigator.push(
+                        context,
+                        AnimatedPageRoute(page: const CreateVideo()),
+                      );
+                    },
+                    leadingIcon: Icons.add,
+                    leadingIconColor: Colors.white,
+                    bgColor: AppColors.purpleColor,
+                    borderRadius: isTablet ? 16 : 12,
+                    fontSize: isTablet ? 18 : 16,
+                    padding: EdgeInsets.symmetric(
+                      vertical: isTablet ? 20 : 16,
+                      horizontal: isTablet ? 40 : 24,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
