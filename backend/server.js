@@ -18,6 +18,7 @@ const videoRoutes = require('./routes/videos');
 const projectRoutes = require('./routes/projects');
 const paymentRoutes = require('./routes/payments');
 const userRoutes = require('./routes/user');
+const adminRoutes = require('./routes/admin');
 const authMiddleware = require('./middleware/auth');
 
 // Initialize Express app
@@ -57,16 +58,25 @@ const corsOptions = {
       process.env.FRONTEND_URL,
       process.env.CORS_ORIGIN,
       'http://localhost:3000',
+      'http://localhost:3001', // Admin panel on port 3001
       'http://localhost:5000',
       'http://localhost:8080',
       'https://video-generation-app-dar3.onrender.com',
+      // Admin panel domains
+      'https://videogen-admin.vercel.app',
+      'https://videogen-admin-panel.vercel.app', 
       // Flutter app may also need CORS access
       'http://localhost:8080', // Flutter web dev
     ].filter(Boolean);
     
+    // console.log('🌐 CORS Request Origin:', origin);
+    // console.log('✅ Allowed Origins:', allowedOrigins);
+    
     if (!origin || allowedOrigins.includes(origin)) {
+      // console.log('✅ CORS: Origin allowed');
       callback(null, true);
     } else {
+      console.log('❌ CORS: Origin not allowed');
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -122,6 +132,7 @@ app.use('/api/videos', authMiddleware, videoRoutes);
 app.use('/api/projects', authMiddleware, projectRoutes);
 app.use('/api/payments', paymentRoutes); // Some payment routes may not need auth
 app.use('/api/user', userRoutes); // User routes include auth middleware where needed
+app.use('/api/admin', adminRoutes); // Admin routes with built-in auth
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -137,8 +148,20 @@ app.get('/health', (req, res) => {
       developmentMode: process.env.DEVELOPMENT_MODE === 'true',
       firebaseConfigured: admin.apps.length > 0,
       cloudinaryConfigured: !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY),
+      elevenLabsConfigured: !!process.env.ELEVENLABS_API_KEY,
+      didConfigured: !!process.env.DID_API_KEY,
       port: process.env.PORT || 5000,
     }
+  });
+});
+
+// API health endpoint for admin
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'online',
+    message: 'API is running',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
   });
 });
 
