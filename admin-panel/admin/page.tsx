@@ -30,9 +30,7 @@ export default function AdminLoginPage() {
 
     try {
       const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
-        }/api/admin/login`,
+        `${process.env.BACKEND_URL || "http://localhost:5000"}/api/admin/login`,
         {
           method: "POST",
           headers: {

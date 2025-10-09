@@ -179,9 +179,7 @@ export default function AdminDashboard() {
     // Check API status
     try {
       const apiResponse = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
-        }/api/health`,
+        `${process.env.BACKEND_URL || "http://localhost:5000"}/api/health`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -209,7 +207,7 @@ export default function AdminDashboard() {
     try {
       const dbResponse = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/health/database`,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -243,7 +241,7 @@ export default function AdminDashboard() {
     try {
       const elevenResponse = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/health/elevenlabs`,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -280,7 +278,7 @@ export default function AdminDashboard() {
     try {
       const runwayResponse = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/health/runway`,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -314,7 +312,7 @@ export default function AdminDashboard() {
     try {
       const didResponse = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/health/did`,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -399,9 +397,7 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
-        }/api/admin/stats`,
+        `${process.env.BACKEND_URL || "http://localhost:5000"}/api/admin/stats`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -431,7 +427,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/users?page=${page}&limit=${limit}&search=${search}`,
         {
           headers: {
@@ -460,7 +456,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/projects?page=${page}&limit=${limit}&status=${status}&search=${search}`,
         {
           headers: {
@@ -489,7 +485,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/transactions?page=${page}&limit=${limit}&status=${status}&search=${search}`,
         {
           headers: {
@@ -520,7 +516,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/users/${userId}/credits`,
         {
           method: "PUT",
@@ -557,7 +553,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/users/${userId}`,
         {
           method: "DELETE",
@@ -589,7 +585,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/projects/${projectId}`,
         {
           method: "DELETE",
@@ -672,7 +668,7 @@ export default function AdminDashboard() {
         const token = localStorage.getItem("adminToken");
         const response = await fetch(
           `${
-            process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+            process.env.BACKEND_URL || "http://localhost:5000"
           }/api/admin/profile`,
           {
             method: "PUT",
@@ -1524,7 +1520,7 @@ export default function AdminDashboard() {
                                   if (!videoUrl.startsWith("http")) {
                                     // If it's a relative path, prepend backend URL
                                     videoUrl = `${
-                                      process.env.NEXT_PUBLIC_BACKEND_URL ||
+                                      process.env.BACKEND_URL ||
                                       "http://localhost:5000"
                                     }${
                                       videoUrl.startsWith("/")

@@ -57,7 +57,7 @@ export default function AdminLoginPage() {
       // Step 3: Exchange Firebase token for backend JWT
       const response = await fetch(
         `${
-          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+          process.env.BACKEND_URL || "http://localhost:5000"
         }/api/admin/firebase-login`,
         {
           method: "POST",

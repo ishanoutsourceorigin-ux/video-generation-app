@@ -14,11 +14,11 @@
     }
   ],
   "env": {
-    "NEXT_PUBLIC_BACKEND_URL": "@backend_url"
+    "BACKEND_URL": "@backend_url"
   },
   "build": {
     "env": {
-      "NEXT_PUBLIC_BACKEND_URL": "@backend_url"
+      "BACKEND_URL": "@backend_url"
     }
   }
 }
