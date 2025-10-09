@@ -65,6 +65,7 @@ const corsOptions = {
       'https://video-generation-app-seven.vercel.app',
       // Admin panel domains
       'https://videogen-admin.vercel.app',
+      'https://clonex-adminpanel.vercel.app',
       'https://videogen-admin-panel.vercel.app', 
       // Flutter app may also need CORS access
       'http://localhost:8080', // Flutter web dev
