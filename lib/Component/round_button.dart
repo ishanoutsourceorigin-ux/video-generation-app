@@ -75,13 +75,16 @@ class _RoundButtonState extends State<RoundButton> {
                       ),
                       const SizedBox(width: 8),
                     ],
-                    Text(
-                      widget.title,
-                      style: TextStyle(
-                        fontSize: widget.fontSize ?? 25,
-                        color: widget.titleColor ?? AppColors.whiteColor,
-                        fontFamily: widget.fontFamily ?? "Eurostile",
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        widget.title,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: widget.fontSize ?? 25,
+                          color: widget.titleColor ?? AppColors.whiteColor,
+                          fontFamily: widget.fontFamily ?? "Eurostile",
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
