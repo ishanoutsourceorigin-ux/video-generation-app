@@ -62,7 +62,7 @@ const corsOptions = {
       'http://localhost:5000',
       'http://localhost:8080',
       'https://video-generation-app-dar3.onrender.com',
-      'https://video-generation-app-seven.vercel.app/',
+      'https://video-generation-app-seven.vercel.app',
       // Admin panel domains
       'https://videogen-admin.vercel.app',
       'https://videogen-admin-panel.vercel.app', 
