@@ -91,3 +91,12 @@ admin-panel/build/
 # =========================================
 firebase-debug.log
 .firebaserc
+
+# =========================================
+# 🔹 Android Signing Keys (SECURITY)
+# =========================================
+android/key.properties
+android/keystore/
+android/app/upload-keystore.jks
+*.jks
+*.keystore

@@ -37,7 +37,7 @@ class ProjectService {
       if (response['projects'] != null) {
         final List<dynamic> projectsJson =
             response['projects'] as List<dynamic>;
-        print('📦 Found ${projectsJson.length} projects');
+        // print('📦 Found ${projectsJson.length} projects');
         for (var json in projectsJson) {
           try {
             projects.add(ProjectModel.fromJson(json));

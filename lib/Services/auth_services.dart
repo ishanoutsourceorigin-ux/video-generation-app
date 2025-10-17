@@ -76,8 +76,8 @@ class AuthService {
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
         // Add web client ID for better Android compatibility
-        serverClientId:
-            '288062969366-p6ho0f35u91elebbcrjnjvc7cnfa50us.apps.googleusercontent.com',
+        // serverClientId:
+        //     '288062969366-p6ho0f35u91elebbcrjnjvc7cnfa50us.apps.googleusercontent.com',
         // Add iOS client ID for better iOS compatibility
         clientId: Platform.isIOS
             ? '288062969366-h90i7gft7h1nl2iea9n3or0dv2stbpvh.apps.googleusercontent.com'
@@ -91,6 +91,7 @@ class AuthService {
 
       if (googleUser == null) {
         Utils.flushBarErrorMessage('Google Sign-In cancelled.', context);
+        print('Google Sign-In cancelled by user.');
         return null;
       }
 

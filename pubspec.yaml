@@ -32,6 +32,7 @@ dependencies:
   dio: ^5.4.0
   gal: ^2.3.0
   flutter_sound: ^9.2.13
+  in_app_purchase: ^3.2.0
 
 dev_dependencies:
   flutter_test:

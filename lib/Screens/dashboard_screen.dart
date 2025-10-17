@@ -15,6 +15,7 @@ import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Component/dashboard_card.dart';
 import 'package:video_gen_app/Component/round_button.dart';
 import 'package:video_gen_app/Component/chewie_video_dialog.dart';
+import 'package:video_gen_app/Services/payment_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool showAppBar;
@@ -34,14 +35,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     'totalAvatars': 0,
     'totalProjects': 0,
     'completedProjects': 0,
-    'availableCredits': 5,
-    'totalSpent': 85,
+    'availableCredits': 0, // New users start with 0 credits
+    'totalSpent': 0, // New users haven't spent anything
   };
 
   List<Map<String, dynamic>> _recentProjects = [];
+  List<Map<String, dynamic>> _paymentHistory = [];
 
   bool _isLoadingStats = true;
   bool _isLoadingProjects = true;
+  bool _isLoadingPayments = true;
   String _errorMessage = '';
 
   // GlobalKeys for sections
@@ -67,7 +70,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // Load all dashboard data
   Future<void> _loadDashboardData() async {
-    await Future.wait([_loadDashboardStats(), _loadRecentProjects()]);
+    await Future.wait([
+      _loadDashboardStats(),
+      _loadRecentProjects(),
+      _loadPaymentHistory(),
+    ]);
   }
 
   // Load dashboard statistics
@@ -210,6 +217,190 @@ class _DashboardScreenState extends State<DashboardScreen> {
         context,
         duration: const Duration(milliseconds: 800),
         curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  // Load payment history
+  Future<void> _loadPaymentHistory() async {
+    try {
+      setState(() {
+        _isLoadingPayments = true;
+      });
+
+      final history = await PaymentService.getPaymentHistory();
+
+      if (mounted) {
+        setState(() {
+          _paymentHistory = history;
+          _isLoadingPayments = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          // Use dummy data for now until API is set up
+          _paymentHistory = [
+            {
+              'createdAt': '2025-10-10T10:00:00Z',
+              'planType': 'starter',
+              'amount': 24.99,
+              'creditsPurchased': 1300,
+              'status': 'completed',
+            },
+            {
+              'createdAt': '2025-10-08T15:30:00Z',
+              'planType': 'basic',
+              'amount': 9.99,
+              'creditsPurchased': 500,
+              'status': 'completed',
+            },
+          ];
+          _isLoadingPayments = false;
+        });
+      }
+      print('Error loading payment history: $e');
+    }
+  }
+
+  // Safe dialog dismissal to prevent black screen issues
+  void _safePopDialog() {
+    try {
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    } catch (e) {
+      print('Error closing dialog: $e');
+    }
+  }
+
+  // Purchase plan method - Real Play Store Integration
+  Future<void> _purchasePlan(String planId, String price, int credits) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppColors.darkGreyColor,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: AppColors.blueColor),
+              const SizedBox(height: 16),
+              const Text(
+                'Initializing purchase...',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Add safety timeout for dialog
+      Future.delayed(const Duration(seconds: 10), () {
+        _safePopDialog();
+      });
+
+      // Initialize in-app purchases
+      final isAvailable = await PaymentService.initializeInAppPurchase();
+
+      if (!isAvailable) {
+        _safePopDialog();
+        _showError('In-app purchases are not available on this device');
+        return;
+      }
+
+      // Start the purchase process
+      final success = await PaymentService.purchasePlan(
+        planId: planId,
+        onSuccess: (message) async {
+          // Close loading dialog
+          _safePopDialog();
+
+          // Refresh dashboard data
+          await _loadDashboardData();
+
+          // Show success message
+          _showSuccess(message, credits);
+        },
+        onError: (error) {
+          // Close loading dialog
+          _safePopDialog();
+
+          // Show error message
+          _showError(error);
+        },
+      );
+
+      // If purchase couldn't be initiated
+      if (!success) {
+        _safePopDialog();
+        _showError('Failed to initiate purchase. Please try again.');
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      _safePopDialog();
+
+      print('Error purchasing plan: $e');
+      _showError('Purchase failed: ${e.toString()}');
+    }
+  }
+
+  // Show success message after purchase
+  void _showSuccess(String message, int credits) {
+    if (mounted) {
+      // Add new transaction to payment history
+      setState(() {
+        _paymentHistory.insert(0, {
+          'createdAt': DateTime.now().toIso8601String(),
+          'planType': 'purchased',
+          'amount': 0.0, // Will be updated from backend
+          'creditsPurchased': credits,
+          'status': 'completed',
+        });
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
+  // Show error message if purchase fails
+  void _showError(String error) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text(error)),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     }
   }
@@ -816,115 +1007,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   );
                                 },
                               ),
-                        const SizedBox(height: 24),
 
-                        // Generated Videos Section
-                        // Row(
-                        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        //   children: [
-                        //     const Text(
-                        //       "Generated Videos",
-                        //       style: TextStyle(
-                        //         color: Colors.white,
-                        //         fontSize: 22,
-                        //         fontWeight: FontWeight.bold,
-                        //       ),
-                        //     ),
-                        //     GestureDetector(
-                        //       onTap: () {
-                        //         Navigator.push(
-                        //           context,
-                        //           AnimatedPageRoute(
-                        //             page: const CompletedVideosScreen(),
-                        //           ),
-                        //         );
-                        //       },
-                        //       child: Text(
-                        //         "See All",
-                        //         style: TextStyle(
-                        //           color: AppColors.purpleColor,
-                        //           fontSize: 16,
-                        //           fontWeight: FontWeight.w600,
-                        //         ),
-                        //       ),
-                        //     ),
-                        //   ],
-                        // ),
-                        // const SizedBox(height: 16),
-
-                        // // Generated Videos Grid
-                        // _isLoadingVideos
-                        //     ? const Center(
-                        //         child: Padding(
-                        //           padding: EdgeInsets.all(40.0),
-                        //           child: CircularProgressIndicator(),
-                        //         ),
-                        //       )
-                        //     : _generatedVideos.isEmpty
-                        //     ? Center(
-                        //         child: Container(
-                        //           padding: const EdgeInsets.all(40),
-                        //           child: Column(
-                        //             crossAxisAlignment:
-                        //                 CrossAxisAlignment.center,
-                        //             children: [
-                        //               Icon(
-                        //                 Icons.video_library_outlined,
-                        //                 size: 64,
-                        //                 color: Colors.grey.shade600,
-                        //               ),
-                        //               const SizedBox(height: 16),
-                        //               Text(
-                        //                 "No videos generated yet",
-                        //                 style: TextStyle(
-                        //                   color: Colors.grey.shade400,
-                        //                   fontSize: 18,
-                        //                   fontWeight: FontWeight.w500,
-                        //                 ),
-                        //               ),
-                        //               const SizedBox(height: 8),
-                        //               Text(
-                        //                 "Create your first video to see it here",
-                        //                 style: TextStyle(
-                        //                   color: Colors.grey.shade600,
-                        //                   fontSize: 14,
-                        //                 ),
-                        //               ),
-                        //             ],
-                        //           ),
-                        //         ),
-                        //       )
-                        //     : LayoutBuilder(
-                        //         builder: (context, constraints) {
-                        //           final width = constraints.maxWidth;
-
-                        //           int crossAxisCount = 2;
-                        //           if (width > 600) {
-                        //             crossAxisCount = 3;
-                        //           }
-                        //           if (width > 900) {
-                        //             crossAxisCount = 4;
-                        //           }
-
-                        //           return GridView.builder(
-                        //             shrinkWrap: true,
-                        //             physics:
-                        //                 const NeverScrollableScrollPhysics(),
-                        //             gridDelegate:
-                        //                 SliverGridDelegateWithFixedCrossAxisCount(
-                        //                   crossAxisCount: crossAxisCount,
-                        //                   crossAxisSpacing: 16,
-                        //                   mainAxisSpacing: 16,
-                        //                   childAspectRatio: 0.75,
-                        //                 ),
-                        //             itemCount: _generatedVideos.length,
-                        //             itemBuilder: (context, index) {
-                        //               final video = _generatedVideos[index];
-                        //               return _buildVideoCard(video);
-                        //             },
-                        //           );
-                        //         },
-                        //       ),
                         const SizedBox(height: 24),
                       ],
 
@@ -964,39 +1047,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               childAspectRatio = 1.8;
                             }
 
-                            return GridView.count(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              crossAxisCount: crossAxisCount,
-                              crossAxisSpacing: isTablet ? 16 : 12,
-                              mainAxisSpacing: isTablet ? 16 : 12,
-                              childAspectRatio: childAspectRatio,
-                              children: [
-                                DashboardCard(
-                                  title: "Credits Purchased",
-                                  value: "105",
-                                  imagePath:
-                                      "images/credit-icon.png", // Purple tick icon
-                                ),
-                                DashboardCard(
-                                  title: "Credits Used",
-                                  value: "75",
-                                  imagePath:
-                                      "images/project-icon.png", // Yellow lightbulb icon
-                                ),
-                                DashboardCard(
-                                  title: "Total Transactions",
-                                  value: "05",
-                                  imagePath:
-                                      "images/completed-icon.png", // Dollar sign icon
-                                ),
-                                // DashboardCard(
-                                //   title: "Total Spent",
-                                //   value: "\$85",
-                                //   imagePath: "images/money-icon.png", // Money icon
-                                // ),
-                              ],
-                            );
+                            return _isLoadingStats
+                                ? SizedBox(
+                                    height: 200,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        color: AppColors.purpleColor,
+                                      ),
+                                    ),
+                                  )
+                                : GridView.count(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    crossAxisCount: crossAxisCount,
+                                    crossAxisSpacing: isTablet ? 16 : 12,
+                                    mainAxisSpacing: isTablet ? 16 : 12,
+                                    childAspectRatio: childAspectRatio,
+                                    children: [
+                                      DashboardCard(
+                                        title: "Credits Purchased",
+                                        value:
+                                            _dashboardStats['creditsPurchased']
+                                                ?.toString() ??
+                                            "0",
+                                        imagePath: "images/credit-icon.png",
+                                      ),
+                                      DashboardCard(
+                                        title: "Credits Used",
+                                        value:
+                                            _dashboardStats['creditsUsed']
+                                                ?.toString() ??
+                                            "0",
+                                        imagePath: "images/project-icon.png",
+                                      ),
+                                      DashboardCard(
+                                        title: "Total Transactions",
+                                        value:
+                                            _dashboardStats['totalTransactions']
+                                                ?.toString() ??
+                                            _paymentHistory.length.toString(),
+                                        imagePath: "images/completed-icon.png",
+                                      ),
+                                      DashboardCard(
+                                        title: "Total Spent",
+                                        value:
+                                            "\$${_dashboardStats['totalSpent']?.toString() ?? "0"}",
+                                        imagePath: "images/money-icon.png",
+                                      ),
+                                    ],
+                                  );
                           },
                         ),
                         const SizedBox(height: 24),
@@ -1016,40 +1116,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Credit Packages
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.8,
-                          children: [
-                            _buildCreditPackage(
-                              "Basic Pack",
-                              "\$10",
-                              "5 video credits",
-                              false,
-                            ),
-                            _buildCreditPackage(
-                              "Pro Pack",
-                              "\$25",
-                              "20 video credits",
-                              true,
-                            ),
-                            _buildCreditPackage(
-                              "Business Pack",
-                              "\$55",
-                              "50 video credits",
-                              false,
-                            ),
-                            _buildCreditPackage(
-                              "Premium Pack",
-                              "\$810",
-                              "100 video credits",
-                              false,
-                            ),
-                          ],
+                        // Credit Packages - 2x2 Grid Layout
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isTablet =
+                                MediaQuery.of(context).size.width > 600;
+
+                            return GridView.count(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: isTablet ? 0.9 : 0.8,
+                              children: [
+                                _buildCreditPackage(
+                                  "Basic",
+                                  "\$9.99",
+                                  "500 credits\n1 Text-to-Video\n5 Avatar Videos",
+                                  false,
+                                  "basic",
+                                  500,
+                                ),
+                                _buildCreditPackage(
+                                  "Starter",
+                                  "\$24.99",
+                                  "1,300 credits\n3 Text-to-Videos\n10 Avatar Videos",
+                                  true,
+                                  "starter",
+                                  1300,
+                                ),
+                                _buildCreditPackage(
+                                  "Pro",
+                                  "\$69.99",
+                                  "4,000 credits\n10 Text-to-Videos\n25 Avatar Videos",
+                                  false,
+                                  "pro",
+                                  4000,
+                                ),
+                                _buildCreditPackage(
+                                  "Business",
+                                  "\$149.99",
+                                  "9,000 credits\n25 Text-to-Videos\n50 Avatar Videos",
+                                  false,
+                                  "business",
+                                  9000,
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
 
@@ -1073,41 +1188,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           child: Column(
                             children: [
                               _buildPaymentHistoryHeader(),
-                              _buildPaymentHistoryItem(
-                                "3 days ago",
-                                "Basic",
-                                "\$10.00",
-                                "40",
-                                "Paid",
-                              ),
-                              _buildPaymentHistoryItem(
-                                "8 minutes ago",
-                                "Pro",
-                                "\$25.00",
-                                "130",
-                                "Paid",
-                              ),
-                              _buildPaymentHistoryItem(
-                                "1 day ago",
-                                "Basic",
-                                "\$10.00",
-                                "40",
-                                "Pending",
-                              ),
-                              _buildPaymentHistoryItem(
-                                "EFEFEAL",
-                                "Basic",
-                                "\$10.00",
-                                "40",
-                                "Unpaid",
-                              ),
-                              _buildPaymentHistoryItem(
-                                "EFEFEAL",
-                                "Basic",
-                                "\$10.00",
-                                "40",
-                                "Unpaid",
-                              ),
+                              if (_isLoadingPayments)
+                                const Padding(
+                                  padding: EdgeInsets.all(20.0),
+                                  child: CircularProgressIndicator(),
+                                )
+                              else if (_paymentHistory.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.all(20.0),
+                                  child: Text(
+                                    "No payment history yet",
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                )
+                              else
+                                ..._paymentHistory
+                                    .take(5)
+                                    .map(
+                                      (payment) => _buildPaymentHistoryItem(
+                                        _formatDate(payment['createdAt'] ?? ''),
+                                        _capitalizeFirst(
+                                          payment['planType'] ?? 'Unknown',
+                                        ),
+                                        "\$${payment['amount']?.toString() ?? '0.00'}",
+                                        payment['creditsPurchased']
+                                                ?.toString() ??
+                                            '0',
+                                        _capitalizeFirst(
+                                          payment['status'] ?? 'Unknown',
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
                             ],
                           ),
                         ),
@@ -1124,79 +1239,170 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // Helper method to format date
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return "${months[date.month - 1]} ${date.day}, ${date.year}";
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  // Helper method to capitalize first letter
+  String _capitalizeFirst(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1).toLowerCase();
+  }
+
   Widget _buildCreditPackage(
     String title,
     String price,
     String description,
     bool isPopular,
+    String planId,
+    int credits,
   ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF2A2D3A),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: isPopular
-            ? Border.all(color: AppColors.darkBlueColor, width: 2)
-            : null,
+            ? Border.all(color: AppColors.blueColor, width: 2)
+            : Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: isPopular
+                ? AppColors.blueColor.withOpacity(0.2)
+                : Colors.black.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (isPopular)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.blueColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                "Popular",
-                style: TextStyle(
+          // Header with title and popular badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              // fontWeight: FontWeight.bold,
-            ),
+              if (isPopular)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.blueColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    "Popular",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 4),
+
+          const SizedBox(height: 8),
+
+          // Price
           Text(
             price,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
+            style: TextStyle(
+              color: AppColors.blueColor,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
           ),
-          if (description.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
+
+          const SizedBox(height: 12),
+
+          // Description
+          Expanded(
+            child: Text(
               description,
-              style: const TextStyle(color: Colors.grey, fontSize: 16),
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 11,
+                height: 1.3,
+              ),
+              maxLines: 4,
             ),
-          ],
-          const Spacer(),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Credits badge
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.blueColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.blueColor.withOpacity(0.3)),
+            ),
+            child: Text(
+              "$credits Credits",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.blueColor,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Buy button
           SizedBox(
             width: double.infinity,
+            height: 40,
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () => _purchasePlan(planId, price, credits),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.purpleColor,
+                backgroundColor: isPopular
+                    ? AppColors.blueColor
+                    : AppColors.purpleColor,
                 foregroundColor: Colors.white,
-
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 2,
               ),
-              child: const Text("Choose Plan", style: TextStyle(fontSize: 16)),
+              child: const Text(
+                "Buy Now",
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ],
@@ -1287,6 +1493,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 'pending':
         statusColor = Colors.orange;
         break;
+      case 'failed':
       case 'unpaid':
         statusColor = Colors.red;
         break;

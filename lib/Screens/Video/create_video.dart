@@ -3,6 +3,9 @@ import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
 import 'package:video_gen_app/Screens/Video/text_based_video_screen.dart';
 import 'package:video_gen_app/Screens/Avatar/my_avatars_screen.dart';
+import 'package:video_gen_app/Services/credit_system_service.dart';
+import 'package:video_gen_app/Component/credit_usage_widget.dart';
+import 'package:video_gen_app/Screens/Settings/credit_purchase_screen.dart';
 
 class CreateVideo extends StatefulWidget {
   final bool showAppBar;
@@ -14,6 +17,106 @@ class CreateVideo extends StatefulWidget {
 }
 
 class _CreateVideoState extends State<CreateVideo> {
+  int _currentCredits = 0;
+  bool _isLoadingCredits = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCredits();
+  }
+
+  Future<void> _loadCredits() async {
+    try {
+      final credits = await CreditSystemService.getUserCredits();
+      setState(() {
+        _currentCredits = credits;
+        _isLoadingCredits = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingCredits = false;
+      });
+    }
+  }
+
+  Future<void> _checkCreditsAndNavigate({
+    required String videoType,
+    required Widget destination,
+    int? durationMinutes,
+  }) async {
+    final requiredCredits = CreditSystemService.calculateRequiredCredits(
+      videoType: videoType,
+      durationMinutes: durationMinutes,
+    );
+
+    if (_currentCredits < requiredCredits) {
+      _showInsufficientCreditsDialog(requiredCredits);
+      return;
+    }
+
+    // Show credit usage dialog
+    showDialog(
+      context: context,
+      builder: (context) => CreditUsageWidget(
+        videoType: videoType,
+        durationMinutes: durationMinutes,
+        onProceed: () {
+          Navigator.of(context).pop();
+          Navigator.push(context, AnimatedPageRoute(page: destination));
+        },
+        onCancel: () => Navigator.of(context).pop(),
+      ),
+    );
+  }
+
+  void _showInsufficientCreditsDialog(int requiredCredits) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.darkGreyColor,
+        title: const Text(
+          'Insufficient Credits',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You need $requiredCredits credits to generate this video.',
+              style: const TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Current balance: $_currentCredits credits',
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                AnimatedPageRoute(page: const CreditPurchaseScreen()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.blueColor,
+            ),
+            child: const Text('Buy Credits'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,18 +139,78 @@ class _CreateVideoState extends State<CreateVideo> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Video Generator",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Choose how you want to create your video",
-                style: TextStyle(color: Colors.grey, fontSize: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Video Generator",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          "Choose how you want to create your video",
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Credit display
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      AnimatedPageRoute(page: const CreditPurchaseScreen()),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.darkGreyColor,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.blueColor.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.account_balance_wallet,
+                            color: AppColors.blueColor,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          _isLoadingCredits
+                              ? SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: AppColors.blueColor,
+                                  ),
+                                )
+                              : Text(
+                                  '$_currentCredits',
+                                  style: TextStyle(
+                                    color: AppColors.blueColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 40),
 
@@ -57,12 +220,11 @@ class _CreateVideoState extends State<CreateVideo> {
                 iconColor: AppColors.purpleColor,
                 title: "Text-Based Video",
                 subtitle: "Generate video from text description",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    AnimatedPageRoute(page: const TextBasedVideoScreen()),
-                  );
-                },
+                creditsRequired: 320,
+                onTap: () => _checkCreditsAndNavigate(
+                  videoType: 'text-to-video',
+                  destination: const TextBasedVideoScreen(),
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -72,12 +234,13 @@ class _CreateVideoState extends State<CreateVideo> {
                 iconColor: AppColors.purpleColor,
                 title: "Avatar Video",
                 subtitle: "Use your AI Avatar to speak your script",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    AnimatedPageRoute(page: const MyAvatarsScreen()),
-                  );
-                },
+                creditsRequired: 40,
+                creditsUnit: "per minute",
+                onTap: () => _checkCreditsAndNavigate(
+                  videoType: 'avatar-video',
+                  destination: const MyAvatarsScreen(),
+                  durationMinutes: 1,
+                ),
               ),
 
               const Spacer(),
@@ -122,6 +285,8 @@ class _CreateVideoState extends State<CreateVideo> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    required int creditsRequired,
+    String? creditsUnit,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -176,6 +341,28 @@ class _CreateVideoState extends State<CreateVideo> {
                   Text(
                     subtitle,
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.blueColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.blueColor.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Text(
+                      '$creditsRequired credits${creditsUnit != null ? ' $creditsUnit' : ''}',
+                      style: TextStyle(
+                        color: AppColors.blueColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),

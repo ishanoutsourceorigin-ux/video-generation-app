@@ -15,23 +15,23 @@ class ApiService {
   static Future<Map<String, String>> _getHeaders() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      print('🔐 Current Firebase User: ${user?.uid ?? 'Not logged in'}');
+      // print('🔐 Current Firebase User: ${user?.uid ?? 'Not logged in'}');
 
       if (user == null) {
         print('❌ No user logged in - using dev mode headers');
         // For development mode - return headers without auth
-        return {'Content-Type': 'application/json'};
+        return {'Content-Type': 'application/json'};                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
       }
 
       final token = await user.getIdToken();
-      print('🔑 Got Firebase token: ${token?.substring(0, 20) ?? 'null'}...');
+      // print('🔑 Got Firebase token: ${token?.substring(0, 20) ?? 'null'}...');
       return {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       };
     } catch (e) {
       print('❌ Error getting auth headers: $e');
-      // Fallback for development
+      // Fallback for development                                                                                              
       return {'Content-Type': 'application/json'};
     }
   }

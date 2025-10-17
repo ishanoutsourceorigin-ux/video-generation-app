@@ -9,10 +9,14 @@
     <!-- Permissions for voice recording -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     
+    <!-- Permission for in-app billing -->
+    <uses-permission android:name="com.android.vending.BILLING" />
+    
     <application
         android:label="CloneX"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

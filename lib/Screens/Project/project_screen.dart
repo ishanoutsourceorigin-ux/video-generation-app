@@ -39,7 +39,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   Future<void> _loadProjects() async {
     if (!mounted) return;
 
-    setState(() {
+    setState(() { 
       _isLoading = true;
       _errorMessage = null;
     });
@@ -66,7 +66,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       if (textBasedResponse['projects'] != null) {
         final List<dynamic> textProjects =
             textBasedResponse['projects'] as List<dynamic>;
-        print('📝 Found ${textProjects.length} text-based projects');
+        // print('📝 Found ${textProjects.length} text-based projects');
         for (var json in textProjects) {
           try {
             allProjects.add(ProjectModel.fromJson(json));
@@ -81,7 +81,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       if (avatarBasedResponse['projects'] != null) {
         final List<dynamic> avatarProjects =
             avatarBasedResponse['projects'] as List<dynamic>;
-        print('🎭 Found ${avatarProjects.length} avatar-based projects');
+        // print('🎭 Found ${avatarProjects.length} avatar-based projects');
         for (var json in avatarProjects) {
           try {
             // print('🔍 Avatar project JSON: $json');
@@ -97,7 +97,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       // Sort by creation date (newest first)
       allProjects.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      print('🎯 Total projects loaded: ${allProjects.length}');
+      // print('🎯 Total projects loaded: ${allProjects.length}');
 
       if (mounted) {
         setState(() {

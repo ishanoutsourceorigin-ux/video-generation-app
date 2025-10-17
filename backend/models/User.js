@@ -34,9 +34,33 @@ const userSchema = new mongoose.Schema({
     enum: ['free', 'starter', 'pro', 'enterprise'],
     default: 'free',
   },
+  
+  // Credit System (Enhanced for Payment Integration)
+  availableCredits: {
+    type: Number,
+    default: 0, // New users start with 0 credits (must purchase)
+    min: 0,
+  },
+  totalPurchased: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  totalUsed: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  totalSpent: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  
+  // Legacy credits field (keeping for backward compatibility)
   credits: {
     type: Number,
-    default: 3, // Free plan gets 3 credits
+    default: 0, // New users start with 0 credits
     min: 0,
   },
   
@@ -232,16 +256,8 @@ userSchema.methods.updateLastActive = function() {
 userSchema.methods.upgradeSubscription = function(plan, subscriptionData = {}) {
   this.plan = plan;
   
-  // Add credits based on plan
-  const creditsMap = {
-    starter: 50,
-    pro: 200,
-    enterprise: 1000
-  };
-  
-  if (creditsMap[plan]) {
-    this.credits += creditsMap[plan];
-  }
+  // Credits are only added through purchase, not subscription upgrade
+  // Remove automatic credit addition to force users to buy credits
   
   Object.assign(this.subscription, subscriptionData);
   this.lastActiveAt = new Date();

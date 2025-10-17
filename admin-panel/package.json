@@ -4,7 +4,7 @@
   "private": true,
   "description": "VideoGen AI Admin Panel - Firebase Authentication & Real-time Dashboard",
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

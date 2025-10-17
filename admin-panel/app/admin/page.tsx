@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Eye, EyeOff, AlertCircle } from "lucide-react";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../lib/firebase";
@@ -178,6 +179,18 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
+
+          {/* Privacy Policy Link */}
+          <div className="mt-6 text-center">
+            <Link
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-gray-400 hover:text-white transition-colors underline"
+            >
+              Privacy Policy
+            </Link>
+          </div>
 
           {/* Admin Info
           <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">

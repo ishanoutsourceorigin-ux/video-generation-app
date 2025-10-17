@@ -96,9 +96,9 @@ class DashboardService {
     int limit = 4,
   }) async {
     try {
-      print(
-        '🏠 Dashboard loading recent projects - Both text-based and avatar videos',
-      );
+      // print(
+      //   '🏠 Dashboard loading recent projects - Both text-based and avatar videos',
+      // );
       final headers = await _getHeaders();
 
       // Use projects API instead of videos API
@@ -116,7 +116,7 @@ class DashboardService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final projects = data['projects'] as List? ?? [];
-        print('🎯 Dashboard loaded ${projects.length} recent projects');
+        // print('🎯 Dashboard loaded ${projects.length} recent projects');
 
         return projects.map<Map<String, dynamic>>((project) {
           return {
