@@ -32,7 +32,7 @@ export default function PrivacyPolicyPage() {
                 Introduction
               </h2>
               <p className="text-gray-300 leading-relaxed">
-                Welcome to CloneX ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our AI video generation platform and mobile application.
+                Welcome to CloneX (we, our, or us). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our AI video generation platform and mobile application.
               </p>
               <p className="text-gray-300 leading-relaxed mt-4">
                 By using CloneX, you agree to the collection and use of information in accordance with this policy. If you do not agree with our policies and practices, please do not use our services.
@@ -160,7 +160,7 @@ export default function PrivacyPolicyPage() {
 
             {/* Children's Privacy */}
             <section className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-4">Children's Privacy</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">Children&apos;s Privacy</h2>
               <p className="text-gray-300">
                 CloneX is not intended for use by children under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete such information promptly.
               </p>
@@ -193,7 +193,7 @@ export default function PrivacyPolicyPage() {
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-white mb-4">Changes to This Privacy Policy</h2>
               <p className="text-gray-300">
-                We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last updated" date. We encourage you to review this Privacy Policy periodically for any changes.
+                We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the Last updated date. We encourage you to review this Privacy Policy periodically for any changes.
               </p>
             </section>
 
