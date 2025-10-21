@@ -128,8 +128,201 @@ router.get('/cloudinary/signature', authMiddleware, async (req, res) => {
   }
 });
 
-// Get API credits and usage
+// Get user's credit balance
 router.get('/credits', authMiddleware, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const user = await User.findByUid(req.user.uid);
+    
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    res.json({
+      credits: user.availableCredits || user.credits || 0,
+      totalPurchased: user.totalPurchased || 0,
+      totalUsed: user.totalUsed || 0
+    });
+
+  } catch (error) {
+    console.error('Get user credits error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch user credits'
+    });
+  }
+});
+
+// Add credits to user account (after successful purchase)
+router.post('/add-credits', authMiddleware, async (req, res) => {
+  try {
+    const { credits, planId, transactionId } = req.body;
+    
+    if (!credits || !planId || !transactionId) {
+      return res.status(400).json({
+        error: 'Missing required fields: credits, planId, transactionId'
+      });
+    }
+
+    const User = require('../models/User');
+    const Transaction = require('../models/Transaction');
+    
+    let user = await User.findByUid(req.user.uid);
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    // Check if transaction already exists to prevent duplicate credits
+    const existingTransaction = await Transaction.findOne({ 
+      transactionId: transactionId,
+      userId: req.user.uid 
+    });
+    
+    if (existingTransaction) {
+      return res.status(400).json({
+        error: 'Transaction already processed'
+      });
+    }
+
+    // Add credits to user
+    user.availableCredits = (user.availableCredits || user.credits || 0) + credits;
+    user.credits = user.availableCredits; // Keep legacy field in sync
+    user.totalPurchased = (user.totalPurchased || 0) + credits;
+    
+    // Create transaction record
+    const transaction = new Transaction({
+      userId: req.user.uid,
+      transactionId: transactionId,
+      type: 'purchase',
+      amount: credits,
+      creditsPurchased: credits,
+      planId: planId,
+      status: 'completed',
+      paymentMethod: 'google_play',
+      metadata: {
+        purchaseType: 'in_app_purchase',
+        platform: 'android'
+      }
+    });
+
+    // Save both in a transaction-like operation
+    await Promise.all([
+      user.save(),
+      transaction.save()
+    ]);
+
+    res.json({
+      success: true,
+      newBalance: user.availableCredits,
+      creditsAdded: credits,
+      transactionId: transactionId
+    });
+
+  } catch (error) {
+    console.error('Add credits error:', error);
+    res.status(500).json({
+      error: 'Failed to add credits'
+    });
+  }
+});
+
+// Consume credits for video generation
+router.post('/consume-credits', authMiddleware, async (req, res) => {
+  try {
+    const { credits, videoType, durationMinutes, projectId } = req.body;
+    
+    if (!credits || !videoType) {
+      return res.status(400).json({
+        error: 'Missing required fields: credits, videoType'
+      });
+    }
+
+    const User = require('../models/User');
+    let user = await User.findByUid(req.user.uid);
+    
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    const currentCredits = user.availableCredits || user.credits || 0;
+    
+    if (currentCredits < credits) {
+      return res.status(400).json({
+        error: 'Insufficient credits',
+        required: credits,
+        available: currentCredits
+      });
+    }
+
+    // Deduct credits
+    user.availableCredits = currentCredits - credits;
+    user.credits = user.availableCredits; // Keep legacy field in sync
+    user.totalUsed = (user.totalUsed || 0) + credits;
+    
+    // Update usage stats
+    user.usage.totalCreditsUsed = (user.usage.totalCreditsUsed || 0) + credits;
+    user.lastActiveAt = new Date();
+
+    await user.save();
+
+    res.json({
+      success: true,
+      newBalance: user.availableCredits,
+      creditsConsumed: credits
+    });
+
+  } catch (error) {
+    console.error('Consume credits error:', error);
+    res.status(500).json({
+      error: 'Failed to consume credits'
+    });
+  }
+});
+
+// Get user's credit history
+router.get('/credit-history', authMiddleware, async (req, res) => {
+  try {
+    const Transaction = require('../models/Transaction');
+    
+    const transactions = await Transaction.find({ 
+      userId: req.user.uid 
+    })
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .select('transactionId type amount creditsPurchased planId status createdAt paymentMethod metadata');
+
+    const history = transactions.map(transaction => ({
+      id: transaction._id.toString(),
+      transactionId: transaction.transactionId,
+      type: transaction.type,
+      amount: transaction.amount,
+      credits: transaction.creditsPurchased || transaction.amount,
+      planId: transaction.planId,
+      status: transaction.status,
+      date: transaction.createdAt,
+      paymentMethod: transaction.paymentMethod,
+      platform: transaction.metadata?.platform || 'unknown'
+    }));
+
+    res.json({
+      history: history
+    });
+
+  } catch (error) {
+    console.error('Get credit history error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch credit history'
+    });
+  }
+});
+
+// Get API credits and usage (legacy endpoint)
+router.get('/api-credits', authMiddleware, async (req, res) => {
   try {
     const credits = {};
 

@@ -34,8 +34,10 @@ const transactionSchema = new mongoose.Schema({
   // Plan Information
   planType: {
     type: String,
-    enum: ['starter', 'pro', 'enterprise', 'credit_pack'],
-    required: true,
+    enum: ['starter', 'pro', 'enterprise', 'credit_pack', 'basic', 'business'],
+  },
+  planId: {
+    type: String,
   },
   creditsPurchased: {
     type: Number,
@@ -46,7 +48,12 @@ const transactionSchema = new mongoose.Schema({
   // Payment Gateway Details
   paymentGateway: {
     type: String,
-    enum: ['stripe', 'paypal', 'razorpay', 'manual'],
+    enum: ['stripe', 'paypal', 'razorpay', 'manual', 'google_play', 'app_store'],
+    default: 'stripe',
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['stripe', 'paypal', 'razorpay', 'google_play', 'app_store', 'manual'],
     default: 'stripe',
   },
   
@@ -62,6 +69,14 @@ const transactionSchema = new mongoose.Schema({
   // PayPal specific fields
   paypalOrderId: String,
   paypalPaymentId: String,
+  
+  // In-App Purchase specific fields
+  transactionId: {
+    type: String,
+    index: true,
+  },
+  purchaseToken: String,
+  productId: String,
   
   // Invoice Details
   invoiceNumber: {
@@ -132,6 +147,11 @@ const transactionSchema = new mongoose.Schema({
     userAgent: String,
     ipAddress: String,
     referrer: String,
+    purchaseType: String, // 'in_app_purchase', 'web_payment'
+    platform: String, // 'android', 'ios', 'web'
+    purchaseToken: String,
+    productId: String,
+    verifiedAt: String,
   },
   
   // Internal Notes

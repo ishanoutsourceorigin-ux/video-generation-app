@@ -50,6 +50,38 @@ router.post('/create', async (req, res) => {
       });
     }
 
+    // CREDIT CHECK: Calculate required credits and validate user balance
+    const estimatedMinutes = Math.ceil(script.length / 150); // ~150 chars per minute
+    const requiredCredits = estimatedMinutes * 40; // 40 credits per minute for avatar videos
+    
+    console.log('💰 Credit calculation:');
+    console.log(`📝 Script length: ${script.length} characters`);
+    console.log(`⏱️ Estimated duration: ${estimatedMinutes} minutes`);
+    console.log(`💳 Required credits: ${requiredCredits}`);
+
+    // Get user model and check credits
+    const User = require('../models/User');
+    const user = await User.findOne({ uid: userId });
+    
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    if (user.credits < requiredCredits) {
+      console.log(`❌ Insufficient credits: User has ${user.credits}, needs ${requiredCredits}`);
+      return res.status(400).json({
+        error: 'Insufficient credits',
+        required: requiredCredits,
+        current: user.credits,
+        estimatedMinutes: estimatedMinutes,
+        creditsPerMinute: 40
+      });
+    }
+
+    console.log(`✅ Credit check passed: User has ${user.credits} credits, needs ${requiredCredits}`);
+
     console.log('👤 User ID:', userId);
     console.log('🎭 Avatar ID:', avatarId);
 
@@ -96,13 +128,37 @@ router.post('/create', async (req, res) => {
     await project.save();
     console.log('✅ Project created:', project._id);
 
-    // 3. Start async video generation
+    // 3. Consume credits for avatar video generation
+    try {
+      await User.findOneAndUpdate(
+        { uid: userId },
+        { 
+          $inc: { credits: -requiredCredits },
+          $push: {
+            creditHistory: {
+              type: 'consumption',
+              amount: requiredCredits,
+              reason: 'avatar_video_generation',
+              projectId: project._id,
+              estimatedMinutes: estimatedMinutes,
+              timestamp: new Date()
+            }
+          }
+        }
+      );
+      console.log(`💳 Consumed ${requiredCredits} credits for avatar video generation`);
+    } catch (creditError) {
+      console.error('❌ Error consuming credits:', creditError);
+      // Don't fail the request, but log the error
+    }
+
+    // 4. Start async video generation
     processAvatarVideoGeneration(project._id, avatar, script, aspectRatio, expression)
       .catch(error => {
         console.error('❌ Avatar video generation error:', error);
       });
 
-    // 4. Return immediate response
+    // 5. Return immediate response
     res.status(201).json({
       message: 'Avatar video generation started',
       project: {
@@ -113,6 +169,11 @@ router.post('/create', async (req, res) => {
         avatarId: project.avatarId,
         estimatedTime: '60-90 seconds',
         createdAt: project.createdAt
+      },
+      creditsInfo: {
+        consumed: requiredCredits,
+        estimatedMinutes: estimatedMinutes,
+        remaining: user.credits - requiredCredits
       }
     });
 

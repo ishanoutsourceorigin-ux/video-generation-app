@@ -105,6 +105,9 @@ router.post('/create-text-based', async (req, res) => {
       userId = `dev-user-${Date.now()}`;
     }
 
+    console.log('🎬 === STARTING TEXT-TO-VIDEO PROJECT CREATION ===');
+    console.log('📥 Request body:', JSON.stringify(req.body, null, 2)); 
+
     // Validation
     if (!title || !description || !style || !voice || !duration) {
       return res.status(400).json({
@@ -140,6 +143,40 @@ router.post('/create-text-based', async (req, res) => {
       });
     }
 
+    // CREDIT CHECK: Text-to-video requires 320 credits (fixed cost)
+    const requiredCredits = 320; // Fixed cost for text-to-video generation
+    
+    console.log('💰 Credit calculation:');
+    console.log(`📝 Text-to-video generation`);
+    console.log(`⏱️ Duration: ${duration} seconds`);
+    console.log(`💳 Required credits: ${requiredCredits}`);
+
+    // Get user model and check credits (skip in dev mode)
+    if (!userId.startsWith('dev-user-')) {
+      const User = require('../models/User');
+      const user = await User.findOne({ uid: userId });
+      
+      if (!user) {
+        return res.status(404).json({
+          error: 'User not found'
+        });
+      }
+
+      if (user.credits < requiredCredits) {
+        console.log(`❌ Insufficient credits: User has ${user.credits}, needs ${requiredCredits}`);
+        return res.status(400).json({
+          error: 'Insufficient credits',
+          required: requiredCredits,
+          current: user.credits,
+          videoType: 'text-to-video'
+        });
+      }
+
+      console.log(`✅ Credit check passed: User has ${user.credits} credits, needs ${requiredCredits}`);
+    } else {
+      console.log('🔧 Dev mode: Skipping credit check');
+    }
+
     // Create video record
     const video = new Video({
       userId,
@@ -173,6 +210,34 @@ router.post('/create-text-based', async (req, res) => {
 
     await video.save();
 
+    // Consume credits for text-to-video generation (skip in dev mode)
+    if (!userId.startsWith('dev-user-')) {
+      try {
+        const User = require('../models/User');
+        await User.findOneAndUpdate(
+          { uid: userId },
+          { 
+            $inc: { credits: -requiredCredits },
+            $push: {
+              creditHistory: {
+                type: 'consumption',
+                amount: requiredCredits,
+                reason: 'text_to_video_generation',
+                projectId: video._id,
+                videoType: 'text-based',
+                duration: duration,
+                timestamp: new Date()
+              }
+            }
+          }
+        );
+        console.log(`💳 Consumed ${requiredCredits} credits for text-to-video generation`);
+      } catch (creditError) {
+        console.error('❌ Error consuming credits:', creditError);
+        // Don't fail the request, but log the error
+      }
+    }
+
     // Start async text-based video generation process
     processTextBasedVideoGeneration(video._id, { 
       title, 
@@ -205,6 +270,11 @@ router.post('/create-text-based', async (req, res) => {
             lipSync: withLipSync,
           }
         }
+      },
+      creditsInfo: {
+        consumed: requiredCredits,
+        videoType: 'text-to-video',
+        remaining: 'Will be updated after credit consumption'
       }
     });
 
@@ -264,6 +334,42 @@ router.post('/create', async (req, res) => {
       });
     }
 
+    // CREDIT CHECK: Avatar video generation (40 credits per minute estimated)
+    const estimatedMinutes = Math.ceil(script.length / 150); // ~150 chars per minute
+    const requiredCredits = estimatedMinutes * 40; // 40 credits per minute for avatar videos
+    
+    console.log('💰 Credit calculation:');
+    console.log(`📝 Script length: ${script.length} characters`);
+    console.log(`⏱️ Estimated duration: ${estimatedMinutes} minutes`);
+    console.log(`💳 Required credits: ${requiredCredits}`);
+
+    // Get user model and check credits (skip in dev mode)
+    if (!userId.startsWith('dev-user-')) {
+      const User = require('../models/User');
+      const user = await User.findOne({ uid: userId });
+      
+      if (!user) {
+        return res.status(404).json({
+          error: 'User not found'
+        });
+      }
+
+      if (user.credits < requiredCredits) {
+        console.log(`❌ Insufficient credits: User has ${user.credits}, needs ${requiredCredits}`);
+        return res.status(400).json({
+          error: 'Insufficient credits',
+          required: requiredCredits,
+          current: user.credits,
+          estimatedMinutes: estimatedMinutes,
+          creditsPerMinute: 40
+        });
+      }
+
+      console.log(`✅ Credit check passed: User has ${user.credits} credits, needs ${requiredCredits}`);
+    } else {
+      console.log('🔧 Dev mode: Skipping credit check');
+    }
+
     // Create video record
     const video = new Video({
       userId,
@@ -280,6 +386,33 @@ router.post('/create', async (req, res) => {
 
     await video.save();
 
+    // Consume credits for avatar video generation (skip in dev mode)
+    if (!userId.startsWith('dev-user-')) {
+      try {
+        const User = require('../models/User');
+        await User.findOneAndUpdate(
+          { uid: userId },
+          { 
+            $inc: { credits: -requiredCredits },
+            $push: {
+              creditHistory: {
+                type: 'consumption',
+                amount: requiredCredits,
+                reason: 'avatar_video_generation',
+                projectId: video._id,
+                estimatedMinutes: estimatedMinutes,
+                timestamp: new Date()
+              }
+            }
+          }
+        );
+        console.log(`💳 Consumed ${requiredCredits} credits for avatar video generation`);
+      } catch (creditError) {
+        console.error('❌ Error consuming credits:', creditError);
+        // Don't fail the request, but log the error
+      }
+    }
+
     // Start async video generation process
     processVideoGeneration(video._id, avatar, script, provider);
 
@@ -292,6 +425,11 @@ router.post('/create', async (req, res) => {
         createdAt: video.createdAt,
         estimatedDuration: video.metadata.estimatedDuration,
         provider: provider,
+      },
+      creditsInfo: {
+        consumed: requiredCredits,
+        estimatedMinutes: estimatedMinutes,
+        remaining: 'Will be updated after credit consumption'
       }
     });
 

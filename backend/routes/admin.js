@@ -288,6 +288,11 @@ router.get('/users', adminAuth, async (req, res) => {
           }
         ]);
 
+        // Get user's credit information from MongoDB
+        const mongoUser = await User.findOne({ uid: firebaseUser.uid });
+        const userCredits = mongoUser ? (mongoUser.availableCredits || mongoUser.credits || 0) : 0;
+        const userPlan = mongoUser ? mongoUser.plan || 'free' : 'free';
+
         const user = {
           id: firebaseUser.uid,
           uid: firebaseUser.uid,
@@ -299,8 +304,8 @@ router.get('/users', adminAuth, async (req, res) => {
           lastLoginAt: firebaseUser.metadata.lastSignInTime,
           totalProjects: userProjects,
           totalSpent: userTransactions.length > 0 ? userTransactions[0].totalSpent : 0,
-          credits: 0, // Firebase users don't have credits system yet
-          plan: 'free' // Default plan
+          credits: userCredits, // Get actual credits from MongoDB
+          plan: userPlan // Get actual plan from MongoDB
         };
 
         // Apply search filter
@@ -367,7 +372,7 @@ router.get('/users', adminAuth, async (req, res) => {
             uid: 1,
             name: 1,
             email: 1,
-            credits: 1,
+            credits: { $ifNull: [{ $ifNull: ['$availableCredits', '$credits'] }, 0] }, // Use availableCredits first, fallback to credits
             plan: 1,
             totalProjects: 1,
             totalSpent: 1,
@@ -645,10 +650,14 @@ router.put('/users/:id/credits', adminAuth, async (req, res) => {
       });
     }
 
-    // Update user credits
+    // Update user credits (both new and legacy fields)
     const user = await User.findOneAndUpdate(
       { uid: id },
-      { credits: credits },
+      { 
+        credits: credits,
+        availableCredits: credits, // Primary field used by the system
+        lastActiveAt: new Date()
+      },
       { new: true }
     );
 
@@ -666,7 +675,8 @@ router.put('/users/:id/credits', adminAuth, async (req, res) => {
       message: 'User credits updated successfully',
       user: {
         id: user.uid,
-        credits: user.credits
+        credits: user.credits,
+        availableCredits: user.availableCredits
       }
     });
 
