@@ -42,21 +42,111 @@ const upload = multer({
 // Get user account information
 router.get('/profile', authMiddleware, async (req, res) => {
   try {
-    const user = req.user;
+    const User = require('../models/User');
+    
+    // Check if user exists in MongoDB
+    let user = await User.findByUid(req.user.uid);
+    
+    if (!user) {
+      console.log('⚠️ User not found in MongoDB, creating from Firebase data:', req.user.uid);
+      
+      try {
+        // Get complete user data from Firebase
+        const admin = require('firebase-admin');
+        const firebaseUser = await admin.auth().getUser(req.user.uid);
+        
+        console.log('📝 Creating user from Firebase data:', {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName
+        });
+        
+        // Create new user with complete Firebase data
+        user = new User({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || 'unknown@example.com',
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+          photoURL: firebaseUser.photoURL || null,
+          phoneNumber: firebaseUser.phoneNumber || null,
+          emailVerified: firebaseUser.emailVerified || false,
+          
+          // Credit system setup
+          availableCredits: 0,
+          credits: 0,
+          totalPurchased: 0,
+          
+          // Profile setup
+          profile: {
+            firstName: firebaseUser.displayName?.split(' ')[0] || '',
+            lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
+            dateOfBirth: null,
+            country: null,
+            preferences: {
+              notifications: true,
+              marketing: false,
+              analytics: true
+            }
+          },
+          
+          // Usage tracking
+          usage: {
+            totalSpent: 0,
+            videosGenerated: 0,
+            avatarsCreated: 0,
+            totalProjects: 0
+          },
+          
+          // Account status
+          isActive: true,
+          isPremium: false,
+          subscriptionStatus: 'free',
+          
+          // Timestamps
+          createdAt: new Date(firebaseUser.metadata.creationTime),
+          lastActiveAt: new Date(),
+          lastLoginAt: new Date()
+        });
+        
+        await user.save();
+        console.log('✅ User created successfully from Firebase data');
+        
+      } catch (createError) {
+        console.error('❌ Error creating user from Firebase:', createError);
+        return res.status(500).json({
+          error: 'Failed to create user profile',
+          details: createError.message
+        });
+      }
+    }
+    
+    // Update last active time
+    user.lastActiveAt = new Date();
+    await user.save();
     
     res.json({
+      success: true,
       user: {
         uid: user.uid,
         email: user.email,
-        name: user.name,
-        picture: user.picture,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        availableCredits: user.availableCredits || 0,
+        credits: user.credits || 0,
+        totalPurchased: user.totalPurchased || 0,
+        profile: user.profile || {},
+        usage: user.usage || {},
+        isActive: user.isActive || true,
+        subscriptionStatus: user.subscriptionStatus || 'free',
+        createdAt: user.createdAt,
+        lastActiveAt: user.lastActiveAt
       }
     });
-
+    
   } catch (error) {
-    console.error('Get user profile error:', error);
+    console.error('❌ Error fetching/creating user profile:', error);
     res.status(500).json({
-      error: 'Failed to fetch user profile'
+      error: 'Failed to fetch user profile',
+      details: error.message
     });
   }
 });
