@@ -273,9 +273,23 @@ async function verifyGooglePlayPurchase(packageName, productId, purchaseToken) {
   }
 }
 
+// DEBUG: Test route to verify the route exists
+router.get('/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Payment routes are working!',
+    timestamp: new Date().toISOString(),
+    availableRoutes: ['/verify-purchase', '/test', '/history']
+  });
+});
+
 // Verify Google Play Store purchase
 router.post('/verify-purchase', authMiddleware, async (req, res) => {
   try {
+    console.log('🎯 === VERIFY-PURCHASE ROUTE HIT ===');
+    console.log('📍 Route: POST /api/payments/verify-purchase');
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    
     const { purchaseToken, productId, transactionId, planId, credits } = req.body;
     
     console.log('🔍 === PURCHASE VERIFICATION REQUEST ===');
