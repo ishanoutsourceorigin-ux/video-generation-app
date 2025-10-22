@@ -97,7 +97,7 @@ class _CreateVideoState extends State<CreateVideo> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -110,7 +110,10 @@ class _CreateVideoState extends State<CreateVideo> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.blueColor,
             ),
-            child: const Text('Buy Credits'),
+            child: const Text(
+              'Buy Credits',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

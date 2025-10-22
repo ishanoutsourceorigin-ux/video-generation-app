@@ -5,6 +5,7 @@ import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
 import 'package:video_gen_app/Component/round_button.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
+import 'package:video_gen_app/Services/credit_system_service.dart';
 
 class MyAvatarsScreen extends StatefulWidget {
   final bool showAppBar;
@@ -19,11 +20,13 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
   List<dynamic> _avatars = [];
   bool _isLoading = true;
   String _error = '';
+  int _userCredits = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchAvatars();
+    _fetchUserCredits();
   }
 
   Future<void> _fetchAvatars() async {
@@ -57,6 +60,18 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
     }
   }
 
+  Future<void> _fetchUserCredits() async {
+    try {
+      final credits = await CreditSystemService.getUserCredits();
+      setState(() {
+        _userCredits = credits;
+      });
+    } catch (e) {
+      print('❌ Error fetching user credits: $e');
+      // Don't show error for credits, just keep it as 0
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -69,8 +84,51 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
-
+              title: const Text(
+                "My Avatars",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               centerTitle: true,
+              actions: [
+                // Credit balance display
+                Container(
+                  margin: const EdgeInsets.only(right: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.purpleColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.purpleColor.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.account_balance_wallet_outlined,
+                        color: AppColors.purpleColor,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$_userCredits',
+                        style: TextStyle(
+                          color: AppColors.purpleColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             )
           : null,
       body: SafeArea(
@@ -187,7 +245,9 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
     return RefreshIndicator(
       color: AppColors.purpleColor,
       backgroundColor: AppColors.darkGreyColor,
-      onRefresh: _fetchAvatars,
+      onRefresh: () async {
+        await Future.wait([_fetchAvatars(), _fetchUserCredits()]);
+      },
       child: ListView.builder(
         itemCount: _avatars.length,
         itemBuilder: (context, index) {
@@ -480,9 +540,10 @@ class _MyAvatarsScreenState extends State<MyAvatarsScreen> {
                         page: GenerateVideoScreen(avatar: avatar),
                       ),
                     );
-                    // Refresh avatar list if needed after video generation
+                    // Refresh avatar list and credits after video generation
                     if (result == true) {
                       _fetchAvatars();
+                      _fetchUserCredits();
                     }
                   },
                   child: Container(

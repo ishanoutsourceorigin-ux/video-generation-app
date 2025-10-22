@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:video_gen_app/Screens/Splash/splash_screen.dart';
 import 'package:video_gen_app/Config/environment.dart';
+import 'package:video_gen_app/Services/payment_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -9,6 +10,13 @@ void main() async {
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize in-app purchase
+  await PaymentService.initializeInAppPurchase();
+  PaymentService.initializePurchaseStream();
+
+  // Recover any incomplete purchases
+  await PaymentService.recoverPurchases();
 
   // Print environment info for debugging
   Environment.printEnvironmentInfo();
@@ -30,5 +38,15 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: const SplashScreen(),
     );
+  }
+}
+
+// Add app lifecycle handling for proper cleanup
+class AppLifecycleHandler extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      PaymentService.dispose();
+    }
   }
 }

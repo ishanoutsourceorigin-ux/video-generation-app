@@ -14,7 +14,6 @@ class CreditPurchaseScreen extends StatefulWidget {
 class _CreditPurchaseScreenState extends State<CreditPurchaseScreen> {
   int _currentCredits = 0;
   bool _isLoading = true;
-  List<Map<String, dynamic>> _purchaseHistory = [];
 
   @override
   void initState() {
@@ -27,16 +26,13 @@ class _CreditPurchaseScreenState extends State<CreditPurchaseScreen> {
 
     try {
       final credits = await CreditSystemService.getUserCredits();
-      final history = await PaymentService.getPaymentHistory();
 
       setState(() {
         _currentCredits = credits;
-        _purchaseHistory = history;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      print('Error loading data: $e');
     }
   }
 
@@ -65,31 +61,38 @@ class _CreditPurchaseScreenState extends State<CreditPurchaseScreen> {
         ),
       );
 
-      // For now, simulate purchase (replace with actual in-app purchase)
-      final success = await CreditSystemService.addCredits(
-        credits: planDetails['credits'],
+      // Use real in-app purchase
+      final success = await PaymentService.purchasePlan(
         planId: planId,
-        transactionId: 'demo_${DateTime.now().millisecondsSinceEpoch}',
+        onSuccess: (message) async {
+          Navigator.of(context).pop(); // Close loading dialog
+          await _loadData(); // Refresh data
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+        onError: (error) {
+          Navigator.of(context).pop(); // Close loading dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(error),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
       );
 
-      Navigator.of(context).pop(); // Close loading dialog
-
-      if (success) {
-        await _loadData(); // Refresh data
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${planDetails['credits']} credits added successfully!',
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
+      if (!success) {
+        Navigator.of(context).pop(); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Purchase failed. Please try again.'),
+            content: Text('Failed to initiate purchase. Please try again.'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),

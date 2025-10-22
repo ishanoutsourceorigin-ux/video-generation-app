@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:video_gen_app/Config/api_config.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:video_gen_app/Services/credit_system_service.dart';
+import 'package:video_gen_app/Services/user_sync_service.dart';
 
 class PaymentService {
   static String get baseUrl => ApiConfig.baseUrl;
@@ -32,7 +33,7 @@ class PaymentService {
 
       // Handle any pending purchases
       await _handlePendingPurchases();
-      
+
       // Clear any stuck purchases
       await _clearStuckPurchases();
 
@@ -47,13 +48,14 @@ class PaymentService {
   static Future<void> _clearStuckPurchases() async {
     try {
       print('🧹 Clearing any stuck purchases...');
-      
+
       // Get past purchases and complete any that are stuck
-      final Stream<List<PurchaseDetails>> purchaseUpdated = _inAppPurchase.purchaseStream;
-      
+      final Stream<List<PurchaseDetails>> purchaseUpdated =
+          _inAppPurchase.purchaseStream;
+
       // Listen briefly to handle any immediate purchases
       StreamSubscription<List<PurchaseDetails>>? tempSubscription;
-      
+
       tempSubscription = purchaseUpdated.listen(
         (List<PurchaseDetails> purchaseDetailsList) async {
           for (final PurchaseDetails purchase in purchaseDetailsList) {
@@ -67,14 +69,13 @@ class PaymentService {
         onError: (error) {
           print('❌ Error clearing stuck purchases: $error');
           tempSubscription?.cancel();
-        }
+        },
       );
-      
+
       // Cancel after 3 seconds
       Future.delayed(Duration(seconds: 3), () {
         tempSubscription?.cancel();
       });
-      
     } catch (e) {
       print('💥 Error clearing stuck purchases: $e');
     }
@@ -363,13 +364,13 @@ class PaymentService {
   static Future<void> _clearPendingPurchases() async {
     try {
       print('🧹 Clearing any pending purchases...');
-      
+
       // Get current purchases
       await _inAppPurchase.restorePurchases();
-      
+
       // Wait a moment for restore to complete
       await Future.delayed(Duration(milliseconds: 500));
-      
+
       print('✅ Pending purchases cleared');
     } catch (e) {
       print('⚠️ Error clearing pending purchases: $e');
@@ -391,11 +392,18 @@ class PaymentService {
   }) async {
     try {
       print('🛒 Starting purchase for plan: $planId');
-      
-      // First, clear any pending purchases to prevent "You already own this item"
-      await _clearPendingPurchases();
-      
-      // Initialize if needed
+
+      // First, ensure user exists in backend
+      print('🔄 Ensuring user exists in backend...');
+      final userSynced = await UserSyncService.ensureUserExistsInBackend();
+      if (!userSynced) {
+        print(
+          '⚠️ Warning: Could not verify user in backend, continuing anyway...',
+        );
+      }
+
+      // Clear any pending purchases to prevent "You already own this item"
+      await _clearPendingPurchases(); // Initialize if needed
       final initialized = await initializeInAppPurchase();
       if (!initialized) {
         onError('In-app purchases not available');
@@ -493,7 +501,9 @@ class PaymentService {
           } else {
             // Even if verification fails, the purchase was completed successfully
             // User should contact support but won't be charged again
-            onError('Purchase completed but verification failed. Please check your credits or contact support.');
+            onError(
+              'Purchase completed but verification failed. Please check your credits or contact support.',
+            );
           }
         }
         if (purchase.pendingCompletePurchase) {
@@ -521,16 +531,20 @@ class PaymentService {
         if (success) {
           onSuccess('Purchase restored! Credits added to your account.');
         } else {
-          onError('Purchase restored but verification failed. Please contact support.');
+          onError(
+            'Purchase restored but verification failed. Please contact support.',
+          );
         }
       } else {
         print('⚠️ Unknown purchase status: ${purchase.status}');
-        print('🔍 Purchase details: ProductID=${purchase.productID}, TransactionID=${purchase.purchaseID}');
-        
+        print(
+          '🔍 Purchase details: ProductID=${purchase.productID}, TransactionID=${purchase.purchaseID}',
+        );
+
         // For unknown status, try to handle it smartly
         if (purchase.purchaseID != null && purchase.purchaseID!.isNotEmpty) {
           print('🔄 Attempting to verify unknown status purchase...');
-          
+
           // Try to verify with backend anyway - might be a successful purchase
           final success = await _verifyAndAddCredits(purchase, planId);
           if (success) {
@@ -538,13 +552,17 @@ class PaymentService {
             onSuccess('Purchase completed! Credits added to your account.');
           } else {
             print('❌ Unknown status purchase verification failed');
-            onError('Purchase status unclear. Please check your credits or contact support.');
+            onError(
+              'Purchase status unclear. Please check your credits or contact support.',
+            );
           }
         } else {
           print('❌ Unknown status with no transaction ID');
-          onError('Purchase status unclear. Please try again or contact support.');
+          onError(
+            'Purchase status unclear. Please try again or contact support.',
+          );
         }
-        
+
         // Always complete unknown status purchases to prevent stuck state
         if (purchase.pendingCompletePurchase) {
           print('🔧 Completing unknown status purchase to prevent stuck state');
@@ -579,6 +597,15 @@ class PaymentService {
         return false;
       }
 
+      // Ensure user exists in backend before verification
+      print('🔄 Pre-verification: Ensuring user exists in backend...');
+      final userSynced = await UserSyncService.ensureUserExistsInBackend();
+      if (!userSynced) {
+        print(
+          '⚠️ Warning: Could not verify user in backend, continuing with verification...',
+        );
+      }
+
       // Get the purchase token and product ID
       final purchaseToken = purchase.verificationData.serverVerificationData;
       final productId = purchase.productID;
@@ -599,6 +626,7 @@ class PaymentService {
       print('  - Transaction ID: $transactionId');
       print('  - Purchase Status: ${purchase.status}');
       print('  - Backend URL: $baseUrl');
+      print('  - Full Verify URL: $baseUrl/api/payments/verify-purchase');
 
       // Retry configuration
       const maxRetries = 3;
@@ -653,27 +681,32 @@ class PaymentService {
               print('📊 Response data: $data');
 
               // Check for specific error patterns
-              final errorMsg = data['error']?.toString() ?? data['message']?.toString() ?? '';
-              
+              final errorMsg =
+                  data['error']?.toString() ??
+                  data['message']?.toString() ??
+                  '';
+
               // Don't retry for verification failures (these are likely permanent)
-              if (errorMsg.contains('already processed') || 
+              if (errorMsg.contains('already processed') ||
                   errorMsg.contains('duplicate') ||
                   errorMsg.contains('already exists')) {
                 print('ℹ️ Purchase already processed, treating as success');
                 return true;
               }
-              
+
               // If it's a Google Play verification issue, try basic validation
-              if (errorMsg.contains('google_play') || 
+              if (errorMsg.contains('google_play') ||
                   errorMsg.contains('verification failed') ||
                   errorMsg.contains('Purchase verification failed')) {
-                print('⚠️ Google Play verification failed, checking for basic validation fallback');
+                print(
+                  '⚠️ Google Play verification failed, checking for basic validation fallback',
+                );
                 if (data.containsKey('verified') && data['verified'] == true) {
                   print('✅ Fallback verification passed');
                   return true;
                 }
               }
-              
+
               return false;
             }
           } else if (response.statusCode >= 500 && attempt < maxRetries) {
@@ -776,15 +809,101 @@ class PaymentService {
         },
       );
 
+      print('🔍 Payment History API Response: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return List<Map<String, dynamic>>.from(data['payments'] ?? []);
+        // Backend returns 'payments' field
+        final transactions = data['payments'] ?? data['transactions'] ?? [];
+
+        print(
+          '📋 Found ${transactions.length} transactions in payment history',
+        );
+
+        // Map backend transaction data to frontend format
+        return transactions.map<Map<String, dynamic>>((transaction) {
+          print('📝 Processing transaction: $transaction');
+
+          // Get amount and credits from backend response (backend uses 'credits' field)
+          final amount = transaction['amount'] ?? 0.0;
+          final credits =
+              transaction['credits'] ??
+              transaction['creditsPurchased'] ??
+              _getCreditsFromAmount(amount);
+          final planName =
+              transaction['planId'] ?? _getPlanNameFromAmount(amount);
+
+          return {
+            'createdAt': transaction['date'] ?? transaction['createdAt'] ?? '',
+            'planType': planName,
+            'amount': amount,
+            'creditsPurchased': credits,
+            'status': _mapStatus(transaction['status'] ?? 'unknown'),
+            'transactionId':
+                transaction['transactionId'] ?? transaction['id'] ?? '',
+            'type': transaction['type'] ?? 'purchase',
+          };
+        }).toList();
       } else {
-        throw Exception('Failed to fetch payment history');
+        throw Exception(
+          'Failed to fetch payment history: ${response.statusCode}',
+        );
       }
     } catch (e) {
       print('Error fetching payment history: $e');
       return [];
+    }
+  }
+
+  // Helper method to get credits from amount
+  static int _getCreditsFromAmount(dynamic amount) {
+    final amountValue = amount is int
+        ? amount.toDouble()
+        : (amount as double? ?? 0.0);
+
+    // Map amount to credits based on your pricing
+    if (amountValue >= 149.99) return 9000; // Business plan
+    if (amountValue >= 69.99) return 4000; // Pro plan
+    if (amountValue >= 24.99) return 1300; // Starter plan
+    if (amountValue >= 9.99) return 500; // Basic plan
+
+    // For custom amounts, estimate credits (assuming $0.01 per credit)
+    return (amountValue * 100).round();
+  }
+
+  // Helper method to get plan name from amount
+  static String _getPlanNameFromAmount(dynamic amount) {
+    final amountValue = amount is int
+        ? amount.toDouble()
+        : (amount as double? ?? 0.0);
+
+    if (amountValue >= 149.99) return 'Business';
+    if (amountValue >= 69.99) return 'Pro';
+    if (amountValue >= 24.99) return 'Starter';
+    if (amountValue >= 9.99) return 'Basic';
+
+    return 'Custom';
+  }
+
+  // Helper method to map status
+  static String _mapStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'success':
+      case 'succeeded':
+        return 'Completed';
+      case 'pending':
+      case 'processing':
+        return 'Pending';
+      case 'failed':
+      case 'error':
+        return 'Failed';
+      case 'cancelled':
+      case 'canceled':
+        return 'Cancelled';
+      default:
+        return 'Completed'; // Default to completed for better UX
     }
   }
 

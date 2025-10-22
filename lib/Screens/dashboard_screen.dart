@@ -36,7 +36,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     'totalProjects': 0,
     'completedProjects': 0,
     'availableCredits': 0, // New users start with 0 credits
-    'totalSpent': 0, // New users haven't spent anything
+    'totalSpent': 0.0, // New users haven't spent anything
+    'creditsPurchased': 0,
+    'creditsUsed': 0,
+    'totalTransactions': 0,
+    'userName': '',
+    'userEmail': '',
+    'userPlan': 'free',
+    'isEmailVerified': false,
   };
 
   List<Map<String, dynamic>> _recentProjects = [];
@@ -409,7 +416,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final fullName = user?.displayName ?? "User";
-    final userName = fullName.split(' ').first; // Get only first name
+    // Use backend userName if available, otherwise fallback to Firebase
+    final backendUserName = _dashboardStats['userName']?.toString() ?? '';
+    final userName = backendUserName.isNotEmpty
+        ? backendUserName.split(' ').first
+        : fullName.split(' ').first; // Get only first name
 
     return Scaffold(
       backgroundColor: AppColors.appBgColor,
@@ -1209,7 +1220,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     .take(5)
                                     .map(
                                       (payment) => _buildPaymentHistoryItem(
-                                        _formatDate(payment['createdAt'] ?? ''),
                                         _capitalizeFirst(
                                           payment['planType'] ?? 'Unknown',
                                         ),
@@ -1240,29 +1250,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // Helper method to format date
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      final months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      return "${months[date.month - 1]} ${date.day}, ${date.year}";
-    } catch (e) {
-      return dateString;
-    }
-  }
-
   // Helper method to capitalize first letter
   String _capitalizeFirst(String text) {
     if (text.isEmpty) return text;
@@ -1419,18 +1406,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: const Row(
         children: [
           Expanded(
-            flex: 2,
-            child: Text(
-              "Date",
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
+            flex: 3,
             child: Text(
               "Plan",
               style: TextStyle(
@@ -1463,7 +1439,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           Expanded(
-            flex: 2,
+            flex: 3,
             child: Text(
               "Status",
               style: TextStyle(
@@ -1479,7 +1455,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildPaymentHistoryItem(
-    String date,
     String plan,
     String amount,
     String credits,
@@ -1509,14 +1484,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Row(
         children: [
           Expanded(
-            flex: 2,
-            child: Text(
-              date,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-            ),
-          ),
-          Expanded(
-            flex: 2,
+            flex: 3,
             child: Text(
               plan,
               style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -1537,7 +1505,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           Expanded(
-            flex: 2,
+            flex: 3,
             child: Text(
               status,
               style: TextStyle(

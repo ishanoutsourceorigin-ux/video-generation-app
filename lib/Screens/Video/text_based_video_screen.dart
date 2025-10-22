@@ -3,7 +3,9 @@ import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Component/round_button.dart';
 import 'package:video_gen_app/Component/round_textfield.dart';
 import 'package:video_gen_app/Services/Api/api_service.dart';
+import 'package:video_gen_app/Services/credit_system_service.dart';
 import 'package:video_gen_app/Screens/Video/completed_videos_screen.dart';
+import 'package:video_gen_app/Screens/Settings/credit_purchase_screen.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
 
 class TextBasedVideoScreen extends StatefulWidget {
@@ -511,6 +513,48 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
     });
 
     try {
+      // CREDIT CHECK: Text-to-video requires 320 credits (fixed cost)
+      print("💳 Checking credits for text-to-video generation...");
+      const requiredCredits =
+          CreditSystemService.textToVideoCredits; // 320 credits
+
+      print("📊 Text-to-video generation");
+      print("⏱️ Duration: $duration seconds");
+      print("💰 Required credits: $requiredCredits");
+
+      // Check if user has enough credits
+      final hasEnoughCredits = await CreditSystemService.hasEnoughCredits(
+        videoType: 'text-to-video',
+      );
+
+      if (!hasEnoughCredits) {
+        print("❌ Insufficient credits for text-to-video generation");
+        setState(() {
+          _isGenerating = false;
+        });
+        _showInsufficientCreditsDialog(requiredCredits);
+        return;
+      }
+
+      print("✅ Credits check passed - user has enough credits");
+
+      // CONSUME CREDITS BEFORE VIDEO GENERATION
+      print("💳 Consuming credits before text-based video generation...");
+      final creditsConsumed = await CreditSystemService.consumeCredits(
+        videoType: 'text-to-video',
+        projectId: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      if (!creditsConsumed) {
+        print("❌ Failed to consume credits");
+        setState(() {
+          _isGenerating = false;
+        });
+        _showInsufficientCreditsDialog(requiredCredits);
+        return;
+      }
+
+      print("✅ Credits consumed successfully");
       print("🎬 === STARTING TEXT-BASED VIDEO GENERATION ===");
       print("📋 Form validation passed");
       print("📹 Title: '${_titleController.text.trim()}'");
@@ -518,7 +562,7 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
       print("⏱️ Duration: $duration seconds");
       print("📏 Aspect Ratio: $_selectedAspectRatio");
       // print("📱 Resolution: ${_selectedResolution}p");
-      print("� Calling API service...");
+      print("🚀 Calling API service...");
 
       // Call backend API for project-based text-based video generation
       final result = await ApiService.createTextBasedProject(
@@ -566,6 +610,110 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showInsufficientCreditsDialog(int requiredCredits) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.darkGreyColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: AppColors.purpleColor,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  "Insufficient Credits",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "You need $requiredCredits credits to generate this AI text-to-video.",
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.blueColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.blueColor.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "💡 Text-to-Video Pricing",
+                      style: TextStyle(
+                        color: AppColors.blueColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "• $requiredCredits credits per text-to-video\n• High-quality AI-generated videos\n• Professional video content creation",
+                      style: TextStyle(
+                        color: Colors.grey.shade300,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                "Cancel",
+                style: TextStyle(color: Colors.grey.shade400),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  AnimatedPageRoute(page: const CreditPurchaseScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.purpleColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text("Buy Credits"),
+            ),
+          ],
+        );
+      },
     );
   }
 }

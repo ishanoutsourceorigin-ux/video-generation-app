@@ -42,18 +42,34 @@ class DashboardService {
           ).replace(queryParameters: {'status': 'completed'}),
           headers: headers,
         ),
+        // Get user profile for credits data
+        http.get(Uri.parse('$baseUrl/user/profile'), headers: headers),
+        // Get payment history for total spent calculation
+        http.get(
+          Uri.parse('${Environment.baseUrl}/api/payments/history'),
+          headers: headers,
+        ),
       ]);
 
       final avatarsResponse = futures[0];
       final projectsResponse = futures[1];
       final completedProjectsResponse = futures[2];
+      final userProfileResponse = futures[3];
+      final paymentHistoryResponse = futures[4];
 
       Map<String, dynamic> stats = {
         'totalAvatars': 0,
         'totalProjects': 0,
         'completedProjects': 0,
-        'availableCredits': 0, // Will be fetched from backend
-        'totalSpent': 0, // Will be fetched from backend
+        'availableCredits': 0,
+        'totalSpent': 0.0,
+        'creditsPurchased': 0,
+        'creditsUsed': 0,
+        'totalTransactions': 0,
+        'userName': '',
+        'userEmail': '',
+        'userPlan': 'free',
+        'isEmailVerified': false,
       };
 
       // Parse avatars response
@@ -77,16 +93,96 @@ class DashboardService {
             completedData['total'] ?? completedData['projects']?.length ?? 0;
       }
 
+      // Parse user profile response for credits data
+      if (userProfileResponse.statusCode == 200) {
+        final userData = json.decode(userProfileResponse.body);
+        final user = userData['user'] ?? {};
+
+        stats['availableCredits'] =
+            user['availableCredits'] ?? user['credits'] ?? 0;
+        stats['creditsPurchased'] = user['totalPurchased'] ?? 0;
+
+        // Use totalUsed from backend if available, otherwise calculate
+        if (user['totalUsed'] != null && user['totalUsed'] > 0) {
+          stats['creditsUsed'] = user['totalUsed'];
+        } else {
+          // Fallback calculation for backward compatibility
+          final purchased = user['totalPurchased'] ?? 0;
+          final available = user['availableCredits'] ?? user['credits'] ?? 0;
+          stats['creditsUsed'] = purchased - available;
+        }
+
+        // Get totalSpent from user profile as fallback
+        final userTotalSpent = user['totalSpent'];
+        if (userTotalSpent != null) {
+          stats['totalSpent'] = userTotalSpent is int
+              ? userTotalSpent.toDouble()
+              : (userTotalSpent as double);
+        }
+
+        // Additional user info for dashboard
+        stats['userName'] = user['name'] ?? '';
+        stats['userEmail'] = user['email'] ?? '';
+        stats['userPlan'] = user['plan'] ?? 'free';
+        stats['isEmailVerified'] = user['isEmailVerified'] ?? false;
+      }
+
+      // Parse payment history response for transaction data
+      if (paymentHistoryResponse.statusCode == 200) {
+        final paymentData = json.decode(paymentHistoryResponse.body);
+
+        // Backend returns 'payments' field, not 'transactions'
+        final transactions = paymentData['payments'] as List? ?? [];
+
+        // Calculate total transactions count
+        stats['totalTransactions'] = transactions.length;
+
+        // Always calculate total spent from payment history transactions
+        double totalSpent = 0.0;
+
+        for (int i = 0; i < transactions.length; i++) {
+          final transaction = transactions[i];
+
+          // Include all successful purchase transactions - be more lenient with status
+          final status = transaction['status']?.toString().toLowerCase() ?? '';
+          if (status == 'completed' ||
+              status == 'success' ||
+              status == 'succeeded') {
+            final amount = transaction['amount'];
+            if (amount != null) {
+              // Handle both int and double amounts
+              final amountValue = amount is int
+                  ? amount.toDouble()
+                  : (amount as double);
+              totalSpent += amountValue;
+            }
+          }
+        }
+        // Override user profile totalSpent if we calculated from payment history
+        if (totalSpent > 0) {
+          stats['totalSpent'] = totalSpent;
+        }
+      } else {
+        stats['totalTransactions'] = 0;
+        stats['totalSpent'] = 0.0;
+      }
+
       return stats;
     } catch (e) {
-      print('Dashboard stats error: $e');
       // Return default values on error
       return {
         'totalAvatars': 0,
         'totalProjects': 0,
         'completedProjects': 0,
         'availableCredits': 5,
-        'totalSpent': 85,
+        'totalSpent': 85.0,
+        'creditsPurchased': 0,
+        'creditsUsed': 0,
+        'totalTransactions': 0,
+        'userName': '',
+        'userEmail': '',
+        'userPlan': 'free',
+        'isEmailVerified': false,
       };
     }
   }
@@ -137,11 +233,9 @@ class DashboardService {
           };
         }).toList();
       } else {
-        print('Failed to fetch projects: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('Recent projects error: $e');
       return [];
     }
   }
@@ -181,11 +275,9 @@ class DashboardService {
           };
         }).toList();
       } else {
-        print('Failed to fetch avatars: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('User avatars error: $e');
       return [];
     }
   }
