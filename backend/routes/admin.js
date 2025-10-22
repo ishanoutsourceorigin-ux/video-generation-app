@@ -650,16 +650,47 @@ router.put('/users/:id/credits', adminAuth, async (req, res) => {
       });
     }
 
-    // Update user credits (both new and legacy fields)
-    const user = await User.findOneAndUpdate(
-      { uid: id },
-      { 
-        credits: credits,
-        availableCredits: credits, // Primary field used by the system
-        lastActiveAt: new Date()
-      },
-      { new: true }
-    );
+    // First, check if user exists in MongoDB
+    let user = await User.findOne({ uid: id });
+    console.log(`🔍 Found user in MongoDB:`, user ? user.email : 'Not found');
+
+    if (!user) {
+      // Try to get user from Firebase and create MongoDB record
+      try {
+        const firebaseUser = await admin.auth().getUser(id);
+        console.log(`🔥 Found user in Firebase: ${firebaseUser.email}`);
+        
+        // Create user in MongoDB
+        user = new User({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: firebaseUser.displayName || firebaseUser.email,
+          credits: credits,
+          availableCredits: credits,
+          plan: 'free',
+          createdAt: new Date()
+        });
+        await user.save();
+        console.log(`✅ Created new MongoDB user: ${user.email}`);
+      } catch (firebaseError) {
+        console.error(`❌ Firebase user not found: ${firebaseError.message}`);
+        return res.status(404).json({
+          success: false,
+          message: 'User not found in Firebase or MongoDB'
+        });
+      }
+    } else {
+      // Update existing user credits (both new and legacy fields)
+      user = await User.findOneAndUpdate(
+        { uid: id },
+        { 
+          credits: credits,
+          availableCredits: credits, // Primary field used by the system
+          lastActiveAt: new Date()
+        },
+        { new: true }
+      );
+    }
 
     if (!user) {
       return res.status(404).json({

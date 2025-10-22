@@ -515,12 +515,13 @@ export default function AdminDashboard() {
   const updateUserCredits = async (userId: string, newCredits: number) => {
     try {
       const token = localStorage.getItem("adminToken");
-      console.log(`🔄 Updating credits for user ${userId} to ${newCredits}`);
+      console.log(`🔄 Frontend: Updating credits for user ${userId} to ${newCredits}`);
+      console.log(`🔄 Using userId:`, userId, typeof userId);
       
       const response = await fetch(
         `${
           process.env.BACKEND_URL || "http://localhost:5000"
-        }/api/admin/users/${userId}/credits`,
+        }/api/admin/users/${encodeURIComponent(userId)}/credits`,
         {
           method: "PUT",
           headers: {
@@ -532,18 +533,18 @@ export default function AdminDashboard() {
       );
 
       const data = await response.json();
-      console.log("📱 Frontend response:", data);
+      console.log("📱 Frontend response:", response.status, data);
 
       if (response.ok && data.success) {
-        toast.success("User credits updated successfully");
+        toast.success(`✅ Credits updated to ${newCredits} for user!`);
         fetchUsers(currentPage, searchTerm, 10);
       } else {
-        console.error("❌ Backend error:", data);
-        toast.error(data.message || "Failed to update user credits");
+        console.error("❌ Backend error:", response.status, data);
+        toast.error(`❌ ${data.message || "Failed to update user credits"}`);
       }
     } catch (error) {
       console.error("💥 Network error updating user credits:", error);
-      toast.error("Network error: Failed to update user credits");
+      toast.error("💥 Network error: Failed to update user credits");
     }
   };
 
