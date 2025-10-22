@@ -210,33 +210,10 @@ router.post('/create-text-based', async (req, res) => {
 
     await video.save();
 
-    // Consume credits for text-to-video generation (skip in dev mode)
-    if (!userId.startsWith('dev-user-')) {
-      try {
-        const User = require('../models/User');
-        await User.findOneAndUpdate(
-          { uid: userId },
-          { 
-            $inc: { credits: -requiredCredits },
-            $push: {
-              creditHistory: {
-                type: 'consumption',
-                amount: requiredCredits,
-                reason: 'text_to_video_generation',
-                projectId: video._id,
-                videoType: 'text-based',
-                duration: duration,
-                timestamp: new Date()
-              }
-            }
-          }
-        );
-        console.log(`💳 Consumed ${requiredCredits} credits for text-to-video generation`);
-      } catch (creditError) {
-        console.error('❌ Error consuming credits:', creditError);
-        // Don't fail the request, but log the error
-      }
-    }
+    // Credits should already be consumed by frontend CreditSystemService
+    // This is just a log to track the operation
+    console.log(`💳 Credits should already be consumed by frontend for ${requiredCredits} credits`);
+    console.log(`📊 Text-to-video generation: ${duration} seconds duration`);
 
     // Start async text-based video generation process
     processTextBasedVideoGeneration(video._id, { 
@@ -386,32 +363,10 @@ router.post('/create', async (req, res) => {
 
     await video.save();
 
-    // Consume credits for avatar video generation (skip in dev mode)
-    if (!userId.startsWith('dev-user-')) {
-      try {
-        const User = require('../models/User');
-        await User.findOneAndUpdate(
-          { uid: userId },
-          { 
-            $inc: { credits: -requiredCredits },
-            $push: {
-              creditHistory: {
-                type: 'consumption',
-                amount: requiredCredits,
-                reason: 'avatar_video_generation',
-                projectId: video._id,
-                estimatedMinutes: estimatedMinutes,
-                timestamp: new Date()
-              }
-            }
-          }
-        );
-        console.log(`💳 Consumed ${requiredCredits} credits for avatar video generation`);
-      } catch (creditError) {
-        console.error('❌ Error consuming credits:', creditError);
-        // Don't fail the request, but log the error
-      }
-    }
+    // Credits should already be consumed by frontend CreditSystemService
+    // This is just a log to track the operation
+    console.log(`💳 Credits should already be consumed by frontend for ${requiredCredits} credits`);
+    console.log(`📊 Avatar video generation: ${estimatedMinutes} minutes estimated`);
 
     // Start async video generation process
     processVideoGeneration(video._id, avatar, script, provider);
