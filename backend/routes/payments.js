@@ -369,39 +369,94 @@ router.post('/verify-purchase', authMiddleware, async (req, res) => {
 
     console.log('✅ Google Play verification passed or using fallback:', playVerification.reason);
 
-    // Get user or create if not exists
+    // Get user or create if not exists with Firebase data
     let user = await User.findByUid(req.user.uid);
     if (!user) {
-      console.log('⚠️ User not found, creating new user:', req.user.uid);
-      
-      // Create new user with Firebase data
-      user = new User({
-        uid: req.user.uid,
-        email: req.user.email || 'unknown@example.com',
-        displayName: req.user.name || 'User',
-        availableCredits: 0,
-        credits: 0,
-        totalPurchased: 0,
-        createdAt: new Date(),
-        lastActiveAt: new Date(),
-        usage: {
-          totalSpent: 0,
-          videosGenerated: 0,
-          avatarsCreated: 0
-        }
-      });
+      console.log('⚠️ User not found in MongoDB, fetching from Firebase:', req.user.uid);
       
       try {
+        // Get complete user data from Firebase
+        const admin = require('firebase-admin');
+        const firebaseUser = await admin.auth().getUser(req.user.uid);
+        
+        console.log('📝 Firebase user data:', {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          emailVerified: firebaseUser.emailVerified,
+          creationTime: firebaseUser.metadata.creationTime
+        });
+        
+        // Create new user with complete Firebase data
+        user = new User({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || 'unknown@example.com',
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+          photoURL: firebaseUser.photoURL || null,
+          phoneNumber: firebaseUser.phoneNumber || null,
+          emailVerified: firebaseUser.emailVerified || false,
+          
+          // Credit system setup
+          availableCredits: 0,
+          credits: 0,
+          totalPurchased: 0,
+          
+          // Profile setup
+          profile: {
+            firstName: firebaseUser.displayName?.split(' ')[0] || '',
+            lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
+            dateOfBirth: null,
+            country: null,
+            preferences: {
+              notifications: true,
+              marketing: false,
+              analytics: true
+            }
+          },
+          
+          // Usage tracking
+          usage: {
+            totalSpent: 0,
+            videosGenerated: 0,
+            avatarsCreated: 0,
+            totalProjects: 0,
+            lastVideoCreated: null,
+            lastAvatarCreated: null
+          },
+          
+          // Account status
+          isActive: true,
+          isPremium: false,
+          subscriptionStatus: 'free',
+          
+          // Timestamps
+          createdAt: new Date(firebaseUser.metadata.creationTime),
+          lastActiveAt: new Date(),
+          lastLoginAt: new Date()
+        });
+        
         await user.save();
-        console.log('✅ New user created successfully:', req.user.uid);
-      } catch (createError) {
-        console.error('❌ Error creating user:', createError);
+        console.log('✅ New user created successfully from Firebase data:', req.user.uid);
+        console.log('👤 User details:', {
+          email: user.email,
+          displayName: user.displayName,
+          credits: user.availableCredits
+        });
+        
+      } catch (firebaseError) {
+        console.error('❌ Error fetching Firebase user or creating MongoDB user:', firebaseError);
         return res.status(500).json({
-          error: 'Failed to create user account',
+          error: 'Failed to create user account from Firebase data',
           success: false,
-          details: createError.message
+          details: firebaseError.message
         });
       }
+    } else {
+      console.log('✅ Existing user found:', {
+        uid: user.uid,
+        email: user.email,
+        currentCredits: user.availableCredits || 0
+      });
     }
 
     // Calculate credits to add
@@ -409,9 +464,11 @@ router.post('/verify-purchase', authMiddleware, async (req, res) => {
     const previousBalance = user.availableCredits || user.credits || 0;
     
     console.log('💰 Credit Update Details:');
+    console.log(`📊 User: ${user.email} (${user.displayName})`);
     console.log(`📊 Previous balance: ${previousBalance}`);
     console.log(`➕ Credits to add: ${creditsToAdd}`);
     console.log(`📈 New balance: ${previousBalance + creditsToAdd}`);
+    console.log(`💳 Plan: ${planId} (${productId})`);
 
     // Add credits to user account with enhanced fields
     user.availableCredits = previousBalance + creditsToAdd;
