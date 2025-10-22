@@ -387,52 +387,30 @@ router.post('/verify-purchase', authMiddleware, async (req, res) => {
           creationTime: firebaseUser.metadata.creationTime
         });
         
-        // Create new user with complete Firebase data
+        // Create new user with complete Firebase data (matching User model schema)
         user = new User({
           uid: firebaseUser.uid,
           email: firebaseUser.email || 'unknown@example.com',
-          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User', // Fixed: use 'name' not 'displayName'
           photoURL: firebaseUser.photoURL || null,
           phoneNumber: firebaseUser.phoneNumber || null,
-          emailVerified: firebaseUser.emailVerified || false,
           
-          // Credit system setup
+          // Credit system setup (matching User model fields)
+          plan: 'free',
           availableCredits: 0,
           credits: 0,
           totalPurchased: 0,
+          totalUsed: 0,
+          totalSpent: 0,
           
-          // Profile setup
-          profile: {
-            firstName: firebaseUser.displayName?.split(' ')[0] || '',
-            lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
-            dateOfBirth: null,
-            country: null,
-            preferences: {
-              notifications: true,
-              marketing: false,
-              analytics: true
-            }
-          },
-          
-          // Usage tracking
-          usage: {
-            totalSpent: 0,
-            videosGenerated: 0,
-            avatarsCreated: 0,
-            totalProjects: 0,
-            lastVideoCreated: null,
-            lastAvatarCreated: null
-          },
-          
-          // Account status
-          isActive: true,
-          isPremium: false,
-          subscriptionStatus: 'free',
+          // Profile fields that exist in model
+          profession: null,
+          bio: null,
+          country: null,
           
           // Timestamps
-          createdAt: new Date(firebaseUser.metadata.creationTime),
-          lastActiveAt: new Date(),
-          lastLoginAt: new Date()
+          createdAt: new Date(),
+          updatedAt: new Date()
         });
         
         await user.save();
