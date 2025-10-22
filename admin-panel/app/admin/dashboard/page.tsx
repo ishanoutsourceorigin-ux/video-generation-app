@@ -515,9 +515,11 @@ export default function AdminDashboard() {
   const updateUserCredits = async (userId: string, newCredits: number) => {
     try {
       const token = localStorage.getItem("adminToken");
-      console.log(`🔄 Frontend: Updating credits for user ${userId} to ${newCredits}`);
+      console.log(
+        `🔄 Frontend: Updating credits for user ${userId} to ${newCredits}`
+      );
       console.log(`🔄 Using userId:`, userId, typeof userId);
-      
+
       const response = await fetch(
         `${
           process.env.BACKEND_URL || "http://localhost:5000"

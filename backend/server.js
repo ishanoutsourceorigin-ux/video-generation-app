@@ -25,6 +25,9 @@ const authMiddleware = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Configure trust proxy for deployment platforms (Render, Heroku, etc.)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   crossOriginEmbedderPolicy: false,

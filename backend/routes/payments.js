@@ -343,21 +343,41 @@ router.post('/verify-purchase', authMiddleware, async (req, res) => {
 
     // Enhanced verification for Google Play Internal Testing
     console.log('🔐 Starting Google Play verification...');
+    console.log('📊 Request Details:', {
+      userId: req.user.uid,
+      productId,
+      purchaseTokenLength: purchaseToken?.length,
+      transactionId: transactionId?.substring(0, 10) + '...',
+      userAgent: req.headers['user-agent']?.substring(0, 50) + '...'
+    });
+    
     const packageName = 'com.clonex.video_gen_app'; // Your app package name
     const playVerification = await verifyGooglePlayPurchase(packageName, productId, purchaseToken);
+    
+    console.log('🔍 Google Play Verification Result:', {
+      valid: playVerification.valid,
+      reason: playVerification.reason,
+      details: playVerification.details,
+      environment: playVerification.environment || 'unknown'
+    });
     
     if (!playVerification.valid) {
       console.error('❌ Google Play verification failed:', playVerification.reason);
       
       // For Internal Testing, be more lenient but still validate basic structure
-      if (playVerification.reason === 'basic_verification') {
+      if (playVerification.reason === 'internal_testing_verification' || 
+          playVerification.reason === 'basic_verification_internal_testing') {
         console.log('⚠️ Using basic verification for internal testing');
       } else {
+        console.error('🚫 Rejecting purchase verification:', {
+          reason: playVerification.reason,
+          details: playVerification.details
+        });
         return res.status(400).json({
           error: 'Purchase verification failed with Google Play',
           success: false,
           reason: playVerification.reason,
-          details: 'Ensure you are using Google Play Internal Testing and the purchase was completed successfully'
+          details: playVerification.details || 'Ensure you are using Google Play Internal Testing and the purchase was completed successfully'
         });
       }
     }
