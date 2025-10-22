@@ -67,14 +67,22 @@ const corsOptions = {
       'https://videogen-admin.vercel.app',
       'https://clonex-adminpanel.vercel.app',
       'https://videogen-admin-panel.vercel.app', 
-      // Flutter app may also need CORS access
+      // Flutter app CORS access
       'http://localhost:8080', // Flutter web dev
+      'http://10.0.2.2:5000', // Android emulator access to host
     ].filter(Boolean);
+    
+    // Allow all origins for mobile app development
+    if (!origin) {
+      // This allows mobile apps and other non-browser clients
+      callback(null, true);
+      return;
+    }
     
     // console.log('🌐 CORS Request Origin:', origin);
     // console.log('✅ Allowed Origins:', allowedOrigins);
     
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin)) {
       // console.log('✅ CORS: Origin allowed');
       callback(null, true);
     } else {
