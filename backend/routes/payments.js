@@ -369,14 +369,39 @@ router.post('/verify-purchase', authMiddleware, async (req, res) => {
 
     console.log('✅ Google Play verification passed or using fallback:', playVerification.reason);
 
-    // Get user
+    // Get user or create if not exists
     let user = await User.findByUid(req.user.uid);
     if (!user) {
-      console.log('❌ User not found:', req.user.uid);
-      return res.status(404).json({
-        error: 'User not found',
-        success: false
+      console.log('⚠️ User not found, creating new user:', req.user.uid);
+      
+      // Create new user with Firebase data
+      user = new User({
+        uid: req.user.uid,
+        email: req.user.email || 'unknown@example.com',
+        displayName: req.user.name || 'User',
+        availableCredits: 0,
+        credits: 0,
+        totalPurchased: 0,
+        createdAt: new Date(),
+        lastActiveAt: new Date(),
+        usage: {
+          totalSpent: 0,
+          videosGenerated: 0,
+          avatarsCreated: 0
+        }
       });
+      
+      try {
+        await user.save();
+        console.log('✅ New user created successfully:', req.user.uid);
+      } catch (createError) {
+        console.error('❌ Error creating user:', createError);
+        return res.status(500).json({
+          error: 'Failed to create user account',
+          success: false,
+          details: createError.message
+        });
+      }
     }
 
     // Calculate credits to add
