@@ -43,7 +43,8 @@ interface AdminStats {
 }
 
 interface User {
-  id: number;
+  id: string;
+  uid: string;
   name: string;
   email: string;
   credits: number;
@@ -511,9 +512,11 @@ export default function AdminDashboard() {
     toast.success("Logged out successfully");
   };
 
-  const updateUserCredits = async (userId: number, newCredits: number) => {
+  const updateUserCredits = async (userId: string, newCredits: number) => {
     try {
       const token = localStorage.getItem("adminToken");
+      console.log(`🔄 Updating credits for user ${userId} to ${newCredits}`);
+      
       const response = await fetch(
         `${
           process.env.BACKEND_URL || "http://localhost:5000"
@@ -528,19 +531,23 @@ export default function AdminDashboard() {
         }
       );
 
-      if (response.ok) {
+      const data = await response.json();
+      console.log("📱 Frontend response:", data);
+
+      if (response.ok && data.success) {
         toast.success("User credits updated successfully");
         fetchUsers(currentPage, searchTerm, 10);
       } else {
-        toast.error("Failed to update user credits");
+        console.error("❌ Backend error:", data);
+        toast.error(data.message || "Failed to update user credits");
       }
     } catch (error) {
-      console.error("Error updating user credits:", error);
-      toast.error("Failed to update user credits");
+      console.error("💥 Network error updating user credits:", error);
+      toast.error("Network error: Failed to update user credits");
     }
   };
 
-  const deleteUser = async (userId: number) => {
+  const deleteUser = async (userId: string) => {
     if (
       !confirm(
         "Are you sure you want to delete this user? This will also delete all their projects and transactions."
