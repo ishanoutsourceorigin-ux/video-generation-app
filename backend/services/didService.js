@@ -5,7 +5,7 @@ const { uploadVideo, cleanupLocalFile } = require('./cloudinaryService');
 
 class DIDService {
   constructor() {
-    this.apiKey = process.env.DID_API_KEY || 'aXNoYW5vdXRzb3VyY2VvcmlnaW5AZ21haWwuY29t:oYJ3mUGgaBJ9egzChE6zK';
+    this.apiKey = process.env.DID_API_KEY || 'aXNoYWFuQGxleGlzdWl0ZS5haQ:qjs6278zjM-ItE7gIm3g7';
     this.baseUrl = process.env.DID_BASE_URL || 'https://api.d-id.com';
     
     console.log('🎭 D-ID Service initialized');
