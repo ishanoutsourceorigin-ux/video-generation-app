@@ -550,7 +550,8 @@ router.get('/transactions', adminAuth, async (req, res) => {
       query.$or = [
         { invoiceNumber: { $regex: search, $options: 'i' } },
         { planType: { $regex: search, $options: 'i' } },
-        { stripeSessionId: { $regex: search, $options: 'i' } }
+        { transactionId: { $regex: search, $options: 'i' } },
+        { productId: { $regex: search, $options: 'i' } }
       ];
     }
 
@@ -589,17 +590,20 @@ router.get('/transactions', adminAuth, async (req, res) => {
         $project: {
           id: 1,
           planType: 1,
+          planId: 1,
           amount: 1,
           currency: 1,
           creditsPurchased: 1,
           status: 1,
           type: 1,
-          stripeSessionId: 1,
+          transactionId: 1,
           invoiceNumber: 1,
           createdAt: 1,
           completedAt: 1,
           user: 1,
-          paymentGateway: 1
+          paymentGateway: 1,
+          paymentMethod: 1,
+          productId: 1
         }
       },
       { $sort: { createdAt: -1 } },

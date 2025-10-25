@@ -71,16 +71,29 @@ interface Project {
 }
 
 interface Transaction {
-  id: number;
-  planType: string;
+  _id: string;
+  userId: string;
+  type: string;
+  status: string;
   amount: number;
   currency: string;
+  planType: string;
+  planId: string;
   creditsPurchased: number;
-  status: string;
-  stripeSessionId: string;
+  paymentGateway: string;
+  paymentMethod: string;
+  transactionId: string;
+  purchaseToken?: string;
+  productId: string;
+  tax?: object;
+  subscription?: object;
+  completedAt?: string;
+  metadata?: object;
   createdAt: string;
-  user: {
-    id: number;
+  webhookEvents?: any[];
+  invoiceNumber?: string;
+  user?: {
+    id: string;
     name: string;
     email: string;
   };
@@ -106,6 +119,15 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Individual loading states for better UX
+  const [loadingStates, setLoadingStates] = useState({
+    stats: false,
+    users: false,
+    projects: false,
+    transactions: false,
+    systemHealth: false,
+  });
 
   // Settings form states
   const [profileData, setProfileData] = useState({
@@ -171,8 +193,43 @@ export default function AdminDashboard() {
 
     initializeProfile();
     fetchDashboardData();
-    checkSystemHealth();
+    // Skip system health check on initial load for faster performance
+    // checkSystemHealth();
   }, [router]);
+
+  // Load data when switching tabs for better performance
+  useEffect(() => {
+    if (!isLoading) {
+      switch (activeTab) {
+        case "users":
+          fetchUsers(1, searchTerm, 10);
+          break;
+        case "projects":
+          fetchProjects(1, statusFilter, searchTerm, 10);
+          break;
+        case "transactions":
+          fetchTransactions(1, statusFilter, searchTerm, 10);
+          break;
+        case "settings":
+          // Load system health only when needed
+          checkSystemHealth();
+          break;
+        default:
+          // Overview tab - load minimal data if not already loaded
+          if (
+            users.length === 0 ||
+            projects.length === 0 ||
+            transactions.length === 0
+          ) {
+            Promise.all([
+              fetchUsers(1, "", 5),
+              fetchProjects(1, "", "", 5),
+              fetchTransactions(1, "", "", 5),
+            ]);
+          }
+      }
+    }
+  }, [activeTab]);
 
   const checkSystemHealth = async () => {
     const token = localStorage.getItem("adminToken");
@@ -380,12 +437,17 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      await Promise.all([
-        fetchStats(),
-        fetchUsers(1, "", 20), // Increased limit for overview
-        fetchProjects(1, "", "", 20), // Increased limit for overview
-        fetchTransactions(1, "", "", 20), // Increased limit for overview
-      ]);
+      // Only fetch essential stats initially for faster loading
+      await fetchStats();
+
+      // Load basic data for overview (smaller amounts)
+      if (activeTab === "overview") {
+        await Promise.all([
+          fetchUsers(1, "", 5), // Reduced limit for faster loading
+          fetchProjects(1, "", "", 5), // Reduced limit for faster loading
+          fetchTransactions(1, "", "", 5), // Reduced limit for faster loading
+        ]);
+      }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       toast.error("Failed to load dashboard data");
@@ -395,6 +457,7 @@ export default function AdminDashboard() {
   };
 
   const fetchStats = async () => {
+    setLoadingStates((prev) => ({ ...prev, stats: true }));
     try {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
@@ -420,10 +483,14 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error("Error fetching stats:", error);
+      toast.error("Failed to load stats");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, stats: false }));
     }
   };
 
   const fetchUsers = async (page = 1, search = "", limit = 10) => {
+    setLoadingStates((prev) => ({ ...prev, users: true }));
     try {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
@@ -439,11 +506,16 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users);
-        setTotalPages(data.pagination.pages);
+        setUsers(data.users || []);
+        setTotalPages(data.pagination?.pages || 1);
+      } else {
+        toast.error("Failed to load users");
       }
     } catch (error) {
       console.error("Error fetching users:", error);
+      toast.error("Network error loading users");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, users: false }));
     }
   };
 
@@ -453,6 +525,7 @@ export default function AdminDashboard() {
     search = "",
     limit = 10
   ) => {
+    setLoadingStates((prev) => ({ ...prev, projects: true }));
     try {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
@@ -468,11 +541,16 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setProjects(data.projects);
-        setTotalPages(data.pagination.pages);
+        setProjects(data.projects || []);
+        setTotalPages(data.pagination?.pages || 1);
+      } else {
+        toast.error("Failed to load projects");
       }
     } catch (error) {
       console.error("Error fetching projects:", error);
+      toast.error("Network error loading projects");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, projects: false }));
     }
   };
 
@@ -482,6 +560,7 @@ export default function AdminDashboard() {
     search = "",
     limit = 10
   ) => {
+    setLoadingStates((prev) => ({ ...prev, transactions: true }));
     try {
       const token = localStorage.getItem("adminToken");
       const response = await fetch(
@@ -497,11 +576,16 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setTransactions(data.transactions);
-        setTotalPages(data.pagination.pages);
+        setTransactions(data.transactions || []);
+        setTotalPages(data.pagination?.pages || 1);
+      } else {
+        toast.error("Failed to load transactions");
       }
     } catch (error) {
       console.error("Error fetching transactions:", error);
+      toast.error("Network error loading transactions");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, transactions: false }));
     }
   };
 
@@ -901,384 +985,420 @@ export default function AdminDashboard() {
         </div>
 
         {/* Overview Tab */}
-        {activeTab === "overview" && stats && (
+        {activeTab === "overview" && (
           <div className="space-y-8">
-            {/* Main Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="glass-effect rounded-xl p-6 border border-blue-500/20">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-300 text-sm">Total Users</p>
-                    <p className="text-3xl font-bold text-white">
-                      {stats.totalUsers}
-                    </p>
-                    <p className="text-green-400 text-sm mt-1">
-                      +{stats.newUsers} this month
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
-                    <Users className="w-7 h-7 text-blue-400" />
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <div className="flex items-center text-sm text-gray-300">
-                    <TrendingUp className="w-4 h-4 mr-1 text-green-400" />
-                    Growth rate:{" "}
-                    {stats.totalUsers > 0
-                      ? ((stats.newUsers / stats.totalUsers) * 100).toFixed(1)
-                      : 0}
-                    %
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass-effect rounded-xl p-6 border border-purple-500/20">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-300 text-sm">Total Projects</p>
-                    <p className="text-3xl font-bold text-white">
-                      {stats.totalProjects}
-                    </p>
-                    <p className="text-purple-400 text-sm mt-1">
-                      {stats.projectsByStatus.completed || 0} completed
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
-                    <Video className="w-7 h-7 text-purple-400" />
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <div className="flex items-center text-sm text-gray-300">
-                    <Activity className="w-4 h-4 mr-1 text-yellow-400" />
-                    Success rate:{" "}
-                    {stats.totalProjects > 0
-                      ? (
-                          ((stats.projectsByStatus.completed || 0) /
-                            stats.totalProjects) *
-                          100
-                        ).toFixed(1)
-                      : 0}
-                    %
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass-effect rounded-xl p-6 border border-green-500/20">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-300 text-sm">Total Revenue</p>
-                    <p className="text-3xl font-bold text-white">
-                      ${stats.totalRevenue.toFixed(2)}
-                    </p>
-                    <p className="text-green-400 text-sm mt-1">
-                      {stats.recentTransactions} recent transactions
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center">
-                    <DollarSign className="w-7 h-7 text-green-400" />
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <div className="flex items-center text-sm text-gray-300">
-                    <CreditCard className="w-4 h-4 mr-1 text-green-400" />
-                    Avg per user: $
-                    {stats.totalUsers > 0
-                      ? (stats.totalRevenue / stats.totalUsers).toFixed(2)
-                      : "0.00"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass-effect rounded-xl p-6 border border-yellow-500/20">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-300 text-sm">Active Processing</p>
-                    <p className="text-3xl font-bold text-white">
-                      {stats.projectsByStatus.processing || 0}
-                    </p>
-                    <p className="text-yellow-400 text-sm mt-1">
-                      Currently generating
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-yellow-500/10 rounded-xl flex items-center justify-center">
-                    <Activity className="w-7 h-7 text-yellow-400" />
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <div className="flex items-center text-sm text-gray-300">
-                    <Calendar className="w-4 h-4 mr-1 text-yellow-400" />
-                    Queue status:{" "}
-                    {(stats.projectsByStatus.pending || 0) +
-                      (stats.projectsByStatus.processing || 0)}{" "}
-                    pending
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Additional Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="glass-effect rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-semibold text-white">
-                    System Health
-                  </h4>
-                  <button
-                    onClick={checkSystemHealth}
-                    className="text-purple-400 hover:text-purple-300 text-sm flex items-center"
+            {/* Loading State */}
+            {loadingStates.stats && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="glass-effect rounded-xl p-6 border border-gray-500/20"
                   >
-                    <RefreshCw className="w-4 h-4 mr-1" />
-                    Refresh
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">API Status</span>
-                    <span
-                      className={`flex items-center ${getHealthStatusColor(
-                        systemHealth.api.status
-                      )}`}
-                    >
-                      <div
-                        className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
-                          systemHealth.api.status
-                        )}`}
-                      ></div>
-                      {systemHealth.api.message}
-                    </span>
+                    <div className="animate-pulse">
+                      <div className="h-4 bg-gray-600 rounded w-1/2 mb-2"></div>
+                      <div className="h-8 bg-gray-600 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-600 rounded w-1/3"></div>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Database</span>
-                    <span
-                      className={`flex items-center ${getHealthStatusColor(
-                        systemHealth.database.status
-                      )}`}
-                    >
-                      <div
-                        className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
-                          systemHealth.database.status
-                        )}`}
-                      ></div>
-                      {systemHealth.database.message}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">ElevenLabs API</span>
-                    <span
-                      className={`flex items-center ${getHealthStatusColor(
-                        systemHealth.elevenLabs.status
-                      )}`}
-                    >
-                      <div
-                        className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
-                          systemHealth.elevenLabs.status
-                        )}`}
-                      ></div>
-                      {systemHealth.elevenLabs.message}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Runway API</span>
-                    <span
-                      className={`flex items-center ${getHealthStatusColor(
-                        systemHealth.runway.status
-                      )}`}
-                    >
-                      <div
-                        className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
-                          systemHealth.runway.status
-                        )}`}
-                      ></div>
-                      {systemHealth.runway.message}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">D-ID API</span>
-                    <span
-                      className={`flex items-center ${getHealthStatusColor(
-                        systemHealth.didApi.status
-                      )}`}
-                    >
-                      <div
-                        className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
-                          systemHealth.didApi.status
-                        )}`}
-                      ></div>
-                      {systemHealth.didApi.message}
-                    </span>
-                  </div>
-                </div>
+                ))}
               </div>
+            )}
 
-              <div className="glass-effect rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-white mb-4">
-                  Project Analytics
-                </h4>
-                <div className="space-y-3">
-                  {Object.entries(stats.projectsByStatus).map(
-                    ([status, count]) => (
-                      <div
-                        key={status}
-                        className="flex justify-between items-center"
+            {/* Stats Content */}
+            {!loadingStates.stats && stats && (
+              <div>
+                {/* Main Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="glass-effect rounded-xl p-6 border border-blue-500/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-gray-300 text-sm">Total Users</p>
+                        <p className="text-3xl font-bold text-white">
+                          {stats.totalUsers}
+                        </p>
+                        <p className="text-green-400 text-sm mt-1">
+                          +{stats.newUsers} this month
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
+                        <Users className="w-7 h-7 text-blue-400" />
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <div className="flex items-center text-sm text-gray-300">
+                        <TrendingUp className="w-4 h-4 mr-1 text-green-400" />
+                        Growth rate:{" "}
+                        {stats.totalUsers > 0
+                          ? ((stats.newUsers / stats.totalUsers) * 100).toFixed(
+                              1
+                            )
+                          : 0}
+                        %
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="glass-effect rounded-xl p-6 border border-purple-500/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-gray-300 text-sm">Total Projects</p>
+                        <p className="text-3xl font-bold text-white">
+                          {stats.totalProjects}
+                        </p>
+                        <p className="text-purple-400 text-sm mt-1">
+                          {stats.projectsByStatus.completed || 0} completed
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
+                        <Video className="w-7 h-7 text-purple-400" />
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <div className="flex items-center text-sm text-gray-300">
+                        <Activity className="w-4 h-4 mr-1 text-yellow-400" />
+                        Success rate:{" "}
+                        {stats.totalProjects > 0
+                          ? (
+                              ((stats.projectsByStatus.completed || 0) /
+                                stats.totalProjects) *
+                              100
+                            ).toFixed(1)
+                          : 0}
+                        %
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="glass-effect rounded-xl p-6 border border-green-500/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-gray-300 text-sm">Total Revenue</p>
+                        <p className="text-3xl font-bold text-white">
+                          ${stats.totalRevenue.toFixed(2)}
+                        </p>
+                        <p className="text-green-400 text-sm mt-1">
+                          {stats.recentTransactions} recent transactions
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center">
+                        <DollarSign className="w-7 h-7 text-green-400" />
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <div className="flex items-center text-sm text-gray-300">
+                        <CreditCard className="w-4 h-4 mr-1 text-green-400" />
+                        Avg per user: $
+                        {stats.totalUsers > 0
+                          ? (stats.totalRevenue / stats.totalUsers).toFixed(2)
+                          : "0.00"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="glass-effect rounded-xl p-6 border border-yellow-500/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-gray-300 text-sm">
+                          Active Processing
+                        </p>
+                        <p className="text-3xl font-bold text-white">
+                          {stats.projectsByStatus.processing || 0}
+                        </p>
+                        <p className="text-yellow-400 text-sm mt-1">
+                          Currently generating
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-yellow-500/10 rounded-xl flex items-center justify-center">
+                        <Activity className="w-7 h-7 text-yellow-400" />
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <div className="flex items-center text-sm text-gray-300">
+                        <Calendar className="w-4 h-4 mr-1 text-yellow-400" />
+                        Queue status:{" "}
+                        {(stats.projectsByStatus.pending || 0) +
+                          (stats.projectsByStatus.processing || 0)}{" "}
+                        pending
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Stats Row */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="glass-effect rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-white">
+                        System Health
+                      </h4>
+                      <button
+                        onClick={checkSystemHealth}
+                        className="text-purple-400 hover:text-purple-300 text-sm flex items-center"
                       >
-                        <div className="flex items-center">
-                          <div
-                            className={`w-3 h-3 rounded-full mr-2 ${
-                              status === "completed"
-                                ? "bg-green-400"
-                                : status === "processing"
-                                ? "bg-yellow-400"
-                                : status === "pending"
-                                ? "bg-blue-400"
-                                : status === "failed"
-                                ? "bg-red-400"
-                                : "bg-gray-400"
-                            }`}
-                          ></div>
-                          <span className="text-gray-300 capitalize">
-                            {status}
-                          </span>
-                        </div>
-                        <span className="text-white font-medium">{count}</span>
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-
-              <div className="glass-effect rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-white mb-4">
-                  Quick Actions
-                </h4>
-                <div className="space-y-3">
-                  <button
-                    onClick={() => setActiveTab("users")}
-                    className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
-                  >
-                    <Users className="w-4 h-4 inline mr-2" />
-                    Manage Users
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("projects")}
-                    className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
-                  >
-                    <Video className="w-4 h-4 inline mr-2" />
-                    View Projects
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("transactions")}
-                    className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
-                  >
-                    <CreditCard className="w-4 h-4 inline mr-2" />
-                    Transaction History
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Recent Users */}
-              <div className="glass-effect rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-semibold text-white">
-                    Recent Users
-                  </h4>
-                  <button
-                    onClick={() => setActiveTab("users")}
-                    className="text-purple-400 hover:text-purple-300 text-sm"
-                  >
-                    View All →
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {users.slice(0, 5).map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
-                    >
-                      <div>
-                        <p className="text-white font-medium">{user.name}</p>
-                        <p className="text-gray-400 text-sm">{user.email}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-white text-sm">
-                          {user.credits} credits
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          {formatDate(user.createdAt)}
-                        </p>
-                      </div>
+                        <RefreshCw className="w-4 h-4 mr-1" />
+                        Refresh
+                      </button>
                     </div>
-                  ))}
-                  {users.length === 0 && (
-                    <div className="text-center py-8">
-                      <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                      <p className="text-gray-400 mb-2">No users found</p>
-                      <p className="text-gray-500 text-sm">
-                        Users will appear here once they register
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Recent Projects */}
-              <div className="glass-effect rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-semibold text-white">
-                    Recent Projects
-                  </h4>
-                  <button
-                    onClick={() => setActiveTab("projects")}
-                    className="text-purple-400 hover:text-purple-300 text-sm"
-                  >
-                    View All →
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {projects.slice(0, 5).map((project) => (
-                    <div
-                      key={project.id}
-                      className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
-                    >
-                      <div>
-                        <p className="text-white font-medium">
-                          {project.title}
-                        </p>
-                        <p className="text-gray-400 text-sm">
-                          by{" "}
-                          {project.user.name ||
-                            project.user.email ||
-                            project.user.id}
-                        </p>
-                      </div>
-                      <div className="text-right">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-300">API Status</span>
                         <span
-                          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            project.status
+                          className={`flex items-center ${getHealthStatusColor(
+                            systemHealth.api.status
                           )}`}
                         >
-                          {project.status}
+                          <div
+                            className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
+                              systemHealth.api.status
+                            )}`}
+                          ></div>
+                          {systemHealth.api.message}
                         </span>
-                        <p className="text-gray-400 text-xs mt-1">
-                          {formatDate(project.createdAt)}
-                        </p>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-300">Database</span>
+                        <span
+                          className={`flex items-center ${getHealthStatusColor(
+                            systemHealth.database.status
+                          )}`}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
+                              systemHealth.database.status
+                            )}`}
+                          ></div>
+                          {systemHealth.database.message}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-300">ElevenLabs API</span>
+                        <span
+                          className={`flex items-center ${getHealthStatusColor(
+                            systemHealth.elevenLabs.status
+                          )}`}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
+                              systemHealth.elevenLabs.status
+                            )}`}
+                          ></div>
+                          {systemHealth.elevenLabs.message}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-300">Runway API</span>
+                        <span
+                          className={`flex items-center ${getHealthStatusColor(
+                            systemHealth.runway.status
+                          )}`}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
+                              systemHealth.runway.status
+                            )}`}
+                          ></div>
+                          {systemHealth.runway.message}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-300">D-ID API</span>
+                        <span
+                          className={`flex items-center ${getHealthStatusColor(
+                            systemHealth.didApi.status
+                          )}`}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
+                              systemHealth.didApi.status
+                            )}`}
+                          ></div>
+                          {systemHealth.didApi.message}
+                        </span>
                       </div>
                     </div>
-                  ))}
-                  {projects.length === 0 && (
-                    <div className="text-center py-8">
-                      <Video className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                      <p className="text-gray-400 mb-2">No projects found</p>
-                      <p className="text-gray-500 text-sm">
-                        Video projects will appear here once users create them
-                      </p>
+                  </div>
+
+                  <div className="glass-effect rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">
+                      Project Analytics
+                    </h4>
+                    <div className="space-y-3">
+                      {Object.entries(stats.projectsByStatus).map(
+                        ([status, count]) => (
+                          <div
+                            key={status}
+                            className="flex justify-between items-center"
+                          >
+                            <div className="flex items-center">
+                              <div
+                                className={`w-3 h-3 rounded-full mr-2 ${
+                                  status === "completed"
+                                    ? "bg-green-400"
+                                    : status === "processing"
+                                    ? "bg-yellow-400"
+                                    : status === "pending"
+                                    ? "bg-blue-400"
+                                    : status === "failed"
+                                    ? "bg-red-400"
+                                    : "bg-gray-400"
+                                }`}
+                              ></div>
+                              <span className="text-gray-300 capitalize">
+                                {status}
+                              </span>
+                            </div>
+                            <span className="text-white font-medium">
+                              {count}
+                            </span>
+                          </div>
+                        )
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  <div className="glass-effect rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">
+                      Quick Actions
+                    </h4>
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => setActiveTab("users")}
+                        className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
+                      >
+                        <Users className="w-4 h-4 inline mr-2" />
+                        Manage Users
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("projects")}
+                        className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
+                      >
+                        <Video className="w-4 h-4 inline mr-2" />
+                        View Projects
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("transactions")}
+                        className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-gray-300 hover:text-white"
+                      >
+                        <CreditCard className="w-4 h-4 inline mr-2" />
+                        Transaction History
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Activity */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Recent Users */}
+                  <div className="glass-effect rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-white">
+                        Recent Users
+                      </h4>
+                      <button
+                        onClick={() => setActiveTab("users")}
+                        className="text-purple-400 hover:text-purple-300 text-sm"
+                      >
+                        View All →
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {users.slice(0, 5).map((user) => (
+                        <div
+                          key={user.id}
+                          className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
+                        >
+                          <div>
+                            <p className="text-white font-medium">
+                              {user.name}
+                            </p>
+                            <p className="text-gray-400 text-sm">
+                              {user.email}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white text-sm">
+                              {user.credits} credits
+                            </p>
+                            <p className="text-gray-400 text-xs">
+                              {formatDate(user.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {users.length === 0 && (
+                        <div className="text-center py-8">
+                          <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                          <p className="text-gray-400 mb-2">No users found</p>
+                          <p className="text-gray-500 text-sm">
+                            Users will appear here once they register
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Recent Projects */}
+                  <div className="glass-effect rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-white">
+                        Recent Projects
+                      </h4>
+                      <button
+                        onClick={() => setActiveTab("projects")}
+                        className="text-purple-400 hover:text-purple-300 text-sm"
+                      >
+                        View All →
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {projects.slice(0, 5).map((project) => (
+                        <div
+                          key={project.id}
+                          className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
+                        >
+                          <div>
+                            <p className="text-white font-medium">
+                              {project.title}
+                            </p>
+                            <p className="text-gray-400 text-sm">
+                              by{" "}
+                              {project.user.name ||
+                                project.user.email ||
+                                project.user.id}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span
+                              className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                project.status
+                              )}`}
+                            >
+                              {project.status}
+                            </span>
+                            <p className="text-gray-400 text-xs mt-1">
+                              {formatDate(project.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {projects.length === 0 && (
+                        <div className="text-center py-8">
+                          <Video className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                          <p className="text-gray-400 mb-2">
+                            No projects found
+                          </p>
+                          <p className="text-gray-500 text-sm">
+                            Video projects will appear here once users create
+                            them
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -1675,42 +1795,54 @@ export default function AdminDashboard() {
                   <tbody>
                     {transactions.map((transaction) => (
                       <tr
-                        key={transaction.id}
+                        key={transaction._id}
                         className="border-t border-white/5"
                       >
                         <td className="py-4 px-6">
                           <div>
                             <p className="text-white font-medium">
-                              #{transaction.id}
+                              {transaction.invoiceNumber ||
+                                `#${transaction._id.substring(0, 8)}`}
                             </p>
                             <p className="text-gray-400 text-sm">
-                              {transaction.stripeSessionId.substring(0, 20)}...
+                              {transaction.transactionId
+                                ? transaction.transactionId.substring(0, 20) +
+                                  "..."
+                                : "N/A"}
                             </p>
                           </div>
                         </td>
                         <td className="py-4 px-6">
                           <div>
                             <p className="text-white">
-                              {transaction.user.name}
+                              {transaction.user?.name ||
+                                transaction.userId ||
+                                "Unknown User"}
                             </p>
                             <p className="text-gray-400 text-sm">
-                              {transaction.user.email}
+                              {transaction.user?.email || "N/A"}
                             </p>
                           </div>
                         </td>
                         <td className="py-4 px-6">
                           <span className="text-white capitalize">
-                            {transaction.planType} Pack
+                            {transaction.planType ||
+                              transaction.planId ||
+                              "N/A"}{" "}
+                            Pack
                           </span>
                         </td>
                         <td className="py-4 px-6">
                           <span className="text-white font-medium">
-                            ${transaction.amount.toFixed(2)}
+                            $
+                            {transaction.amount
+                              ? transaction.amount.toFixed(2)
+                              : "0.00"}
                           </span>
                         </td>
                         <td className="py-4 px-6">
                           <span className="text-white">
-                            {transaction.creditsPurchased}
+                            {transaction.creditsPurchased || 0}
                           </span>
                         </td>
                         <td className="py-4 px-6">
@@ -1724,7 +1856,9 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-4 px-6">
                           <span className="text-gray-300">
-                            {formatDate(transaction.createdAt)}
+                            {formatDate(
+                              transaction.completedAt || transaction.createdAt
+                            )}
                           </span>
                         </td>
                       </tr>
