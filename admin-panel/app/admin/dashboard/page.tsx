@@ -1521,7 +1521,7 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-4 px-6">
                           <div className="flex space-x-2">
-                            {project.videoUrl && (
+                            {/* {project.videoUrl && (
                               <button
                                 onClick={() => {
                                   let videoUrl = project.videoUrl;
@@ -1585,7 +1585,7 @@ export default function AdminDashboard() {
                                 >
                                   <Eye className="w-4 h-4 opacity-30" />
                                 </span>
-                              )}
+                              )} */}
                             <button
                               onClick={() => deleteProject(project.id)}
                               className="text-red-400 hover:text-red-300 transition-colors"

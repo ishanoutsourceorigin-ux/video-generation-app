@@ -11,7 +11,7 @@ import { auth } from "../../lib/firebase";
 export default function AdminLoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    email: "ishanoutsourceorigin@gmail.com",
+    email: "",
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
