@@ -152,15 +152,15 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
               const SizedBox(height: 24),
 
               // Video Configuration Section
-              const Text(
-                "Video Configuration",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
+              // const Text(
+              //   "Video Configuration",
+              //   style: TextStyle(
+              //     color: Colors.white,
+              //     fontSize: 18,
+              //     fontWeight: FontWeight.bold,
+              //   ),
+              // ),
+              // const SizedBox(height: 16),
 
               // Aspect Ratio Selection
               const Text(
@@ -263,52 +263,52 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
               // const SizedBox(height: 16),
 
               // Duration Selection
-              const Text(
-                "Duration",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.darkGreyColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.greyColor.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedDuration,
-                    isExpanded: true,
-                    dropdownColor: AppColors.darkGreyColor,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    icon: Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Colors.grey.shade400,
-                    ),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          _selectedDuration = newValue;
-                        });
-                      }
-                    },
-                    items: _durations.map<DropdownMenuItem<String>>((duration) {
-                      return DropdownMenuItem<String>(
-                        value: duration['value'],
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(duration['label']!),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
+              // const Text(
+              //   "Duration",
+              //   style: TextStyle(
+              //     color: Colors.white,
+              //     fontSize: 16,
+              //     fontWeight: FontWeight.bold,
+              //   ),
+              // ),
+              // const SizedBox(height: 8),
+              // Container(
+              //   decoration: BoxDecoration(
+              //     color: AppColors.darkGreyColor,
+              //     borderRadius: BorderRadius.circular(12),
+              //     border: Border.all(
+              //       color: AppColors.greyColor.withValues(alpha: 0.3),
+              //     ),
+              //   ),
+              //   child: DropdownButtonHideUnderline(
+              //     child: DropdownButton<String>(
+              //       value: _selectedDuration,
+              //       isExpanded: true,
+              //       dropdownColor: AppColors.darkGreyColor,
+              //       style: const TextStyle(color: Colors.white, fontSize: 16),
+              //       icon: Icon(
+              //         Icons.keyboard_arrow_down,
+              //         color: Colors.grey.shade400,
+              //       ),
+              //       onChanged: (String? newValue) {
+              //         if (newValue != null) {
+              //           setState(() {
+              //             _selectedDuration = newValue;
+              //           });
+              //         }
+              //       },
+              //       items: _durations.map<DropdownMenuItem<String>>((duration) {
+              //         return DropdownMenuItem<String>(
+              //           value: duration['value'],
+              //           child: Padding(
+              //             padding: const EdgeInsets.symmetric(horizontal: 16),
+              //             child: Text(duration['label']!),
+              //           ),
+              //         );
+              //       }).toList(),
+              //     ),
+              //   ),
+              // ),
               const SizedBox(height: 24),
 
               // // Audio & Features Section
@@ -476,8 +476,8 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
                     Text(
                       "• AI will generate video content based on your description\n"
                       "• Generation typically takes 1-3 minutes\n"
-                      "• Video quality depends on description detail\n"
-                      "• You'll receive a notification when ready",
+                      "• Video quality depends on description detail\n",
+                      // "• You'll receive a notification when ready",
                       style: TextStyle(
                         color: Colors.grey.shade300,
                         fontSize: 12,

@@ -21,28 +21,22 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _scriptController = TextEditingController();
   bool _isGenerating = false;
-  String _selectedAspectRatio = '9:16'; // Default to portrait for avatars
-  String _selectedExpression = 'neutral'; // Default expression
+  final TextEditingController _promptController = TextEditingController();
+  final TextEditingController _negativePromptController =
+      TextEditingController();
 
-  // D-ID supported aspect ratios only
-  final List<Map<String, dynamic>> _aspectRatios = [
-    {'label': 'Portrait (9:16) - Best for mobile', 'value': '9:16'},
-    {'label': 'Landscape (16:9) - Best for desktop', 'value': '16:9'},
-    {'label': 'Square (1:1) - Best for social media', 'value': '1:1'},
-  ];
-
-  // D-ID supported expressions
-  final List<Map<String, dynamic>> _expressions = [
-    {'label': 'Neutral - Natural expression', 'value': 'neutral'},
-    {'label': 'Happy - Smiling expression', 'value': 'happy'},
-    {'label': 'Surprise - Surprised expression', 'value': 'surprise'},
-    {'label': 'Serious - Professional expression', 'value': 'serious'},
-  ];
+  // Default prompts
+  final String _defaultPrompt =
+      "high quality, clear, cinematic, natural speaking, perfect lip sync, professional";
+  final String _defaultNegativePrompt =
+      "blurry, low quality, chaotic, deformed, watermark, bad anatomy, shaky camera, distorted face";
 
   @override
   void dispose() {
     _titleController.dispose();
     _scriptController.dispose();
+    _promptController.dispose();
+    _negativePromptController.dispose();
     super.dispose();
   }
 
@@ -218,9 +212,9 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Aspect Ratio Selection
+              // Custom Prompt Section
               const Text(
-                "Video Aspect Ratio",
+                "Generation Prompt (Optional)",
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -236,102 +230,27 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                     color: AppColors.greyColor.withValues(alpha: 0.3),
                   ),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedAspectRatio,
-                    isExpanded: true,
-                    dropdownColor: AppColors.darkGreyColor,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    icon: Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Colors.grey.shade400,
+                child: TextField(
+                  controller: _promptController,
+                  maxLines: 3,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: _defaultPrompt,
+                    hintStyle: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12,
                     ),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          _selectedAspectRatio = newValue;
-                        });
-                      }
-                    },
-                    items: _aspectRatios.map<DropdownMenuItem<String>>((ratio) {
-                      return DropdownMenuItem<String>(
-                        value: ratio['value'] as String,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            ratio['label'] as String,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(16),
                   ),
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                "Choose aspect ratio for your talking head video (duration auto-detected from audio)",
+                "Customize the generation prompt or leave empty for default optimized settings",
                 style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
               ),
               const SizedBox(height: 24),
-
-              // Expression Selection
-              const Text(
-                "Avatar Expression",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.darkGreyColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.greyColor.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedExpression,
-                    isExpanded: true,
-                    dropdownColor: AppColors.darkGreyColor,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    icon: Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Colors.grey.shade400,
-                    ),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          _selectedExpression = newValue;
-                        });
-                      }
-                    },
-                    items: _expressions.map<DropdownMenuItem<String>>((
-                      expression,
-                    ) {
-                      return DropdownMenuItem<String>(
-                        value: expression['value'] as String,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            expression['label'] as String,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Choose facial expression for your avatar during the video",
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-              ),
               const SizedBox(height: 40),
 
               // Generate Button
@@ -400,10 +319,11 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "• Video generation takes 1-2 minutes with D-ID\n"
+                      "• Video generation powered by CloneX AI technology\n"
                       "• Perfect lip-sync with your avatar's cloned voice\n"
-                      "• Duration auto-detected from your script length\n"
-                      "• High-quality talking head video with natural expressions",
+                      "• Customizable prompts for different styles and moods\n"
+                      // "• Automatic duration optimization based on script\n"
+                      "• High-quality natural expressions and movements",
                       style: TextStyle(
                         color: Colors.grey.shade300,
                         fontSize: 12,
@@ -507,8 +427,12 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
         avatarId: avatarId,
         title: _titleController.text.trim(),
         script: _scriptController.text.trim(),
-        aspectRatio: _selectedAspectRatio,
-        expression: _selectedExpression,
+        prompt: _promptController.text.trim().isNotEmpty
+            ? _promptController.text.trim()
+            : _defaultPrompt,
+        negativePrompt: _negativePromptController.text.trim().isNotEmpty
+            ? _negativePromptController.text.trim()
+            : _defaultNegativePrompt,
       );
 
       print("✅ Video generation started: $result");
@@ -610,7 +534,7 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "• ${CreditSystemService.avatarVideoCreditsPerMinute} credits per minute\n• High-quality talking head videos\n• Perfect lip-sync with cloned voice",
+                      "• ${CreditSystemService.avatarVideoCreditsPerMinute} credits per minute\n• High-quality avatar videos by CloneX\n• Perfect lip-sync with cloned voice",
                       style: TextStyle(
                         color: Colors.grey.shade300,
                         fontSize: 12,

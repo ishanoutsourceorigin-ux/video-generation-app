@@ -150,7 +150,7 @@ export default function AdminDashboard() {
     database: { status: "checking", message: "Checking..." },
     elevenLabs: { status: "checking", message: "Checking..." },
     runway: { status: "checking", message: "Checking..." },
-    didApi: { status: "checking", message: "Checking..." },
+    a2eApi: { status: "checking", message: "Checking..." },
   });
 
   useEffect(() => {
@@ -366,37 +366,37 @@ export default function AdminDashboard() {
       }));
     }
 
-    // Check D-ID API
+    // Check A2E API
     try {
-      const didResponse = await fetch(
+      const a2eResponse = await fetch(
         `${
           process.env.BACKEND_URL || "http://localhost:5000"
-        }/api/admin/health/did`,
+        }/api/admin/health/a2e`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      const didData = await didResponse.json();
+      const a2eData = await a2eResponse.json();
 
-      if (didResponse.ok && didData.success) {
+      if (a2eResponse.ok && a2eData.success) {
         setSystemHealth((prev) => ({
           ...prev,
-          didApi: { status: "active", message: didData.message || "Active" },
+          a2eApi: { status: "active", message: a2eData.message || "Active" },
         }));
       } else {
         setSystemHealth((prev) => ({
           ...prev,
-          didApi: {
+          a2eApi: {
             status: "error",
-            message: didData.error || "API key invalid",
+            message: a2eData.error || "API token invalid",
           },
         }));
       }
     } catch (error) {
       setSystemHealth((prev) => ({
         ...prev,
-        didApi: { status: "offline", message: "Service unavailable" },
+        a2eApi: { status: "offline", message: "Service unavailable" },
       }));
     }
   };
@@ -1202,18 +1202,20 @@ export default function AdminDashboard() {
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-300">D-ID API</span>
+                        <span className="text-gray-300">
+                          A2E Talking Photo API
+                        </span>
                         <span
                           className={`flex items-center ${getHealthStatusColor(
-                            systemHealth.didApi.status
+                            systemHealth.a2eApi.status
                           )}`}
                         >
                           <div
                             className={`w-2 h-2 rounded-full mr-2 ${getHealthDotColor(
-                              systemHealth.didApi.status
+                              systemHealth.a2eApi.status
                             )}`}
                           ></div>
-                          {systemHealth.didApi.message}
+                          {systemHealth.a2eApi.message}
                         </span>
                       </div>
                     </div>

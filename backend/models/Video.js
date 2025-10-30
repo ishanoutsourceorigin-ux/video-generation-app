@@ -36,6 +36,10 @@ const videoSchema = new mongoose.Schema({
     type: String,
     required: false, // Runway API task ID for tracking
   },
+  a2eTaskId: {
+    type: String,
+    required: false, // A2E API task ID for tracking talking photo generation
+  },
   status: {
     type: String,
     enum: ['queued', 'processing', 'completed', 'failed'],
@@ -80,11 +84,23 @@ const videoSchema = new mongoose.Schema({
     voice: String, // Voice type for narration
     scriptLength: Number,
     estimatedDuration: Number,
-    provider: String, // 'runway', 'ai-text-generator', etc.
+    provider: String, // 'runway', 'elevenlabs-a2e', 'ai-text-generator', etc.
     generationMethod: String, // Description of how video was generated
     voiceSettings: {
       stability: { type: Number, default: 0.5 },
       similarityBoost: { type: Number, default: 0.75 },
+    },
+    // A2E specific fields
+    a2e: {
+      prompt: String, // Generation prompt used
+      negative_prompt: String, // Negative prompt used
+
+      taskId: String, // A2E task ID
+      originalImageUrl: String, // Avatar image URL
+      generatedAudioUrl: String, // ElevenLabs generated audio URL
+      estimatedDuration: Number, // Duration in seconds
+      actualDuration: Number, // Actual video duration from A2E
+      status: String, // A2E specific status
     },
   }
 });
@@ -99,5 +115,6 @@ videoSchema.pre('save', function(next) {
 videoSchema.index({ userId: 1, createdAt: -1 });
 videoSchema.index({ status: 1 });
 videoSchema.index({ avatarId: 1 });
+videoSchema.index({ a2eTaskId: 1 });
 
 module.exports = mongoose.model('Video', videoSchema);

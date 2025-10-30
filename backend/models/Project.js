@@ -41,9 +41,9 @@ const projectSchema = new mongoose.Schema({
     },
     duration: {
       type: Number,
-      min: 4,
       max: 60,
-      required: true,
+      required: false,
+      default: 0, // 0 means auto-detect from audio
     },
     style: {
       type: String,
@@ -90,7 +90,7 @@ const projectSchema = new mongoose.Schema({
   // Processing Information
   provider: {
     type: String,
-    enum: ['runway', 'elevenlabs-runway', 'elevenlabs-did', 'synthesia', 'custom'],
+    enum: ['runway', 'elevenlabs-runway', 'elevenlabs-did', 'elevenlabs-a2e', 'synthesia', 'custom'],
     default: 'runway',
   },
   taskId: {

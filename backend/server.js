@@ -21,9 +21,139 @@ const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
 const authMiddleware = require('./middleware/auth');
 
+// Import A2E completion service
+const Project = require('./models/Project');
+const A2ECompletionService = require('./services/a2eCompletionService');
+
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// A2E Auto-Completion Service Class
+class A2EAutoCompletion {
+  constructor(checkInterval = 30000) {
+    this.checkInterval = checkInterval;
+    this.intervalId = null;
+    this.isRunning = false;
+    this.lastLogTime = null;
+    this.projectLastLogTime = new Map(); // Track per-project logging
+    console.log('🤖 A2E auto-completion service initialized');
+  }
+
+  async start() {
+    if (this.isRunning) {
+      console.log('⚠️ Auto-completion service is already running');
+      return;
+    }
+
+    console.log('🚀 Starting A2E auto-completion service...');
+    console.log(`⏱️ Check interval: ${this.checkInterval / 1000} seconds`);
+    
+    this.isRunning = true;
+    this.intervalId = setInterval(() => {
+      this.checkAndCompleteVideos();
+    }, this.checkInterval);
+
+    // Initial check
+    setTimeout(() => {
+      this.checkAndCompleteVideos();
+    }, 2000);
+  }
+
+  async checkAndCompleteVideos() {
+    try {
+      const processingProjects = await Project.find({
+        status: 'processing',
+        taskId: { $exists: true, $ne: null },
+        provider: 'elevenlabs-a2e'
+      }).sort({ createdAt: -1 });
+
+      if (processingProjects.length === 0) {
+        console.log('📋 No A2E videos currently in processing');
+        return;
+      }
+
+      console.log(`🔍 Found ${processingProjects.length} A2E video(s) in processing status`);
+
+      for (const project of processingProjects) {
+        try {
+          // Skip if already has video URL (already completed but status not updated)
+          if (project.videoUrl && project.videoUrl.includes('cloudinary')) {
+            console.log(`⏭️ Skipping already completed video: ${project._id}`);
+            
+            // Update status to completed if not already
+            if (project.status !== 'completed') {
+              await Project.findByIdAndUpdate(project._id, { 
+                status: 'completed',
+                processingCompletedAt: new Date()
+              });
+              console.log(`✅ Updated status to completed: ${project._id}`);
+            }
+            continue;
+          }
+          
+          // Check if video has been processing for too long (over 2 hours)
+          const processingTime = Date.now() - new Date(project.createdAt).getTime();
+          const twoHours = 2 * 60 * 60 * 1000;
+          
+          if (processingTime > twoHours) {
+            console.log(`⚠️ Video has been processing for ${Math.round(processingTime / (60 * 1000))} minutes`);
+            console.log(`🔍 Project: ${project._id}, Task: ${project.taskId}`);
+          }
+
+          const result = await a2eCompletionService.completeA2EVideo(project.taskId, project._id);
+          
+          if (result.success) {
+            console.log(`✅ Video completed: ${project._id}`);
+            console.log(`🎥 Video URL: ${result.videoUrl}`);
+            
+            // Update project in database to prevent re-processing
+            await Project.findByIdAndUpdate(project._id, {
+              status: 'completed',
+              videoUrl: result.videoUrl,
+              thumbnailUrl: result.thumbnailUrl,
+              processingCompletedAt: new Date(),
+              actualDuration: result.actualDuration,
+              errorMessage: null
+            });
+            console.log(`💾 Project ${project._id} updated in database`);
+            
+          } else if (result.message?.includes('still processing') || result.message?.includes('Status: sent')) {
+            // Only log per project every 5 minutes to reduce noise
+            const now = Date.now();
+            const projectId = project._id.toString();
+            const lastLog = this.projectLastLogTime.get(projectId) || 0;
+            
+            if ((now - lastLog) > 300000) { // Log every 5 minutes per project
+              console.log(`⏳ Video still processing: ${project._id} (Status: ${result.status || 'sent'})`);
+              console.log(`📅 Created: ${project.createdAt}`);
+              this.projectLastLogTime.set(projectId, now);
+            }
+          } else {
+            console.log(`❌ Error completing video: ${result.message}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error processing project ${project._id}:`, error.message);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error in auto-completion check:', error.message);
+    }
+  }
+
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.isRunning = false;
+    console.log('🛑 A2E auto-completion service stopped');
+  }
+}
+
+// Initialize services
+const a2eCompletionService = new A2ECompletionService();
+const autoCompletion = new A2EAutoCompletion(30000); // 30 seconds
 
 // Configure trust proxy for deployment platforms (Render, Heroku, etc.)
 app.set('trust proxy', 1);
@@ -121,6 +251,11 @@ mongoose.connect(process.env.MONGODB_URI, {
 })
 .then(() => {
   console.log('Connected to MongoDB Atlas');
+  
+  // Start A2E auto-completion service after database connection
+  setTimeout(() => {
+    autoCompletion.start();
+  }, 3000); // Wait 3 seconds to ensure everything is initialized
 })
 .catch((error) => {
   console.error('MongoDB connection error:', error);
@@ -209,10 +344,35 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+});
+
+// Graceful shutdown handling
+process.on('SIGINT', () => {
+  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+  autoCompletion.stop();
+  server.close(() => {
+    console.log('✅ Server closed');
+    mongoose.connection.close(false, () => {
+      console.log('✅ MongoDB connection closed');
+      process.exit(0);
+    });
+  });
+});
+
+process.on('SIGTERM', () => {
+  console.log('🛑 Received SIGTERM, shutting down gracefully...');
+  autoCompletion.stop();
+  server.close(() => {
+    console.log('✅ Server closed');
+    mongoose.connection.close(false, () => {
+      console.log('✅ MongoDB connection closed');
+      process.exit(0);
+    });
+  });
 });
 
 module.exports = app;

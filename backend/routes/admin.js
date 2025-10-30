@@ -995,16 +995,35 @@ router.get('/health/runway', adminAuth, async (req, res) => {
   }
 });
 
-router.get('/health/did', adminAuth, async (req, res) => {
+router.get('/health/a2e', adminAuth, async (req, res) => {
   try {
-    // Check D-ID API configuration
-    const hasApiKey = !!process.env.DID_API_KEY;
-    const hasBaseUrl = !!process.env.DID_BASE_URL;
+    // Check A2E API configuration
+    const hasApiToken = !!process.env.A2E_API_TOKEN;
+    const hasBaseUrl = !!process.env.A2E_API_URL;
     
     res.json({
-      success: hasApiKey && hasBaseUrl,
-      message: hasApiKey && hasBaseUrl ? 'D-ID API configured' : 'D-ID API key or base URL missing',
-      status: hasApiKey && hasBaseUrl ? 'active' : 'error'
+      success: hasApiToken && hasBaseUrl,
+      message: hasApiToken && hasBaseUrl ? 'A2E Talking Photo API configured' : 'A2E API token or base URL missing',
+      status: hasApiToken && hasBaseUrl ? 'active' : 'error'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Legacy D-ID endpoint (for backward compatibility)
+router.get('/health/did', adminAuth, async (req, res) => {
+  try {
+    // Redirect to A2E health check since we've migrated
+    const hasApiToken = !!process.env.A2E_API_TOKEN;
+    
+    res.json({
+      success: hasApiToken,
+      message: hasApiToken ? 'Migrated to A2E API' : 'Please configure A2E API token',
+      status: hasApiToken ? 'active' : 'error'
     });
   } catch (error) {
     res.status(500).json({

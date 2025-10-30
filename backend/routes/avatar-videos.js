@@ -4,7 +4,7 @@ const Project = require('../models/Project');
 const Avatar = require('../models/Avatar');
 const elevenLabsService = require('../services/elevenLabsService');
 const RunwayService = require('../services/runwayService');
-const didService = require('../services/didService');
+const a2eService = require('../services/a2eService');
 
 const router = express.Router();
 
@@ -26,7 +26,17 @@ router.post('/create', async (req, res) => {
     console.log('🎭 === STARTING AVATAR VIDEO PROJECT CREATION ===');
     console.log('📥 Request body:', JSON.stringify(req.body, null, 2)); 
     
-    const { avatarId, title, script, aspectRatio = '9:16', expression = 'neutral' } = req.body; // Defaults
+    const { 
+      avatarId, 
+      title, 
+      script, 
+      prompt = "high quality, clear, cinematic, natural speaking, perfect lip sync",
+      negative_prompt = "blurry, low quality, chaotic, deformed, watermark, bad anatomy, shaky camera, distorted face"
+    } = req.body;
+    
+    console.log(`📋 Generation prompt: "${prompt}"`);
+    console.log(`🚫 Negative prompt: "${negative_prompt}"`);
+    
     const userId = getUserId(req);
     
     // Validation
@@ -36,11 +46,20 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // Validate aspect ratio for D-ID
-    const supportedRatios = ['9:16', '16:9', '1:1'];
-    if (!supportedRatios.includes(aspectRatio)) {
+    // Validate A2E parameters
+    const validation = a2eService.validateParams({
+      name: title,
+      image_url: 'dummy', // Will be replaced with actual avatar URL
+      audio_url: 'dummy', // Will be replaced with generated audio
+      duration: 0, // 0 = auto-detect duration
+      prompt,
+      negative_prompt
+    });
+
+    if (!validation.valid) {
       return res.status(400).json({
-        error: 'Aspect ratio must be 9:16, 16:9, or 1:1 for D-ID'
+        error: 'Invalid parameters for A2E',
+        details: validation.errors
       });
     }
 
@@ -110,17 +129,16 @@ router.post('/create', async (req, res) => {
       status: 'pending',
       avatarId: avatar._id,
       script,
-      provider: 'elevenlabs-runway',
+      provider: 'elevenlabs-a2e',
       configuration: {
-        aspectRatio: '720:1280', // Default to vertical for talking heads
-        resolution: 720,
-        duration: 8, // Will be determined by audio length
-        style: 'realistic',
+        prompt,
+        negative_prompt,
+        duration: 0, // 0 = auto-detect from audio
         voice: avatar.voiceId,
         features: {
           withAudio: true,
-          withSubtitles: false,
           withLipSync: true,
+          talkingPhoto: true,
         },
       },
     });
@@ -134,7 +152,7 @@ router.post('/create', async (req, res) => {
     console.log(`📊 Avatar video generation: ${estimatedMinutes} minutes estimated`);
 
     // 4. Start async video generation
-    processAvatarVideoGeneration(project._id, avatar, script, aspectRatio, expression)
+    processAvatarVideoGeneration(project._id, avatar, script, prompt, negative_prompt)
       .catch(error => {
         console.error('❌ Avatar video generation error:', error);
       });
@@ -167,10 +185,10 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// Async function to process avatar video generation
-async function processAvatarVideoGeneration(projectId, avatar, script, aspectRatio = '9:16', expression = 'neutral') {
+// Async function to process avatar video generation with A2E
+async function processAvatarVideoGeneration(projectId, avatar, script, prompt, negative_prompt) {
   try {
-    console.log('🎬 Starting avatar video processing for project:', projectId);
+    console.log('🎬 Starting A2E avatar video processing for project:', projectId);
 
     // Update project status
     await Project.findByIdAndUpdate(projectId, { 
@@ -187,43 +205,66 @@ async function processAvatarVideoGeneration(projectId, avatar, script, aspectRat
     }
 
     console.log('✅ Speech generated successfully');
+    console.log('🎵 Audio URL:', audioResult.audioUrl);
 
-    // Step 2: Create talking head video using D-ID
-    console.log('🎥 Step 2: Creating talking head video with D-ID...');
-    const videoResult = await generateTalkingHeadVideo(
-      avatar.imageUrl,
-      audioResult.audioUrl,
-      projectId,
-      aspectRatio,
-      expression
-    );
-
-    if (!videoResult.success) {
-      throw new Error(`D-ID talking head generation failed: ${videoResult.error}`);
+    // Step 2: Generate optimized prompts if not provided
+    let finalPrompt = prompt;
+    let finalNegativePrompt = negative_prompt;
+    
+    if (!prompt || prompt === "high quality, clear, cinematic, natural speaking, perfect lip sync") {
+      const generatedPrompts = a2eService.generatePrompts({
+        avatarType: avatar.profession || 'professional',
+        content: script
+      });
+      finalPrompt = generatedPrompts.prompt;
+      finalNegativePrompt = generatedPrompts.negative_prompt;
     }
 
-    console.log('✅ Avatar video generated successfully');
+    console.log('🎥 Step 3: Creating talking photo with A2E...');
+    console.log('📋 Using prompt:', finalPrompt);
+    console.log('🚫 Using negative prompt:', finalNegativePrompt);
 
-    // Step 3: Update project with final video
+    // Step 4: Create talking photo using A2E (duration auto-detected by A2E)
+    const a2eResult = await a2eService.startTalkingPhoto({
+      name: `Avatar_${avatar.name}_${Date.now()}`,
+      image_url: avatar.imageUrl,
+      audio_url: audioResult.audioUrl,
+      duration: 0, // 0 = auto-detect duration from audio length
+      prompt: finalPrompt,
+      negative_prompt: finalNegativePrompt
+    });
+
+    if (!a2eResult.success) {
+      throw new Error(`A2E talking photo generation failed: ${a2eResult.message}`);
+    }
+
+    console.log('✅ A2E talking photo generation started');
+    console.log('🆔 Task ID:', a2eResult.taskId);
+
+    // Step 5: Update project with A2E task information
     await Project.findByIdAndUpdate(projectId, {
-      status: 'completed',
-      provider: 'elevenlabs-did', // D-ID + ElevenLabs combination
-      taskId: videoResult.talkId, // D-ID talk ID
-      videoUrl: videoResult.videoUrl,
-      thumbnailUrl: videoResult.thumbnailUrl,
-      processingCompletedAt: new Date(),
-      actualDuration: videoResult.duration,
-      fileSize: videoResult.fileSize,
-      dimensions: {
-        width: videoResult.width,
-        height: videoResult.height
+      status: 'processing',
+      provider: 'elevenlabs-a2e', // A2E + ElevenLabs combination
+      taskId: a2eResult.taskId, // A2E task ID
+      processingStartedAt: new Date(),
+      configuration: {
+        prompt: finalPrompt,
+        negative_prompt: finalNegativePrompt,
+        voice: avatar.voiceId,
+        audioUrl: audioResult.audioUrl,
+        features: {
+          withAudio: true,
+          withLipSync: true,
+          talkingPhoto: true,
+        },
       }
     });
 
-    console.log('🎉 Avatar video project completed:', projectId);
+    console.log('⏳ A2E video processing started. Waiting for webhook completion...');
+    console.log('📝 Note: Video will be completed when A2E webhook is received');
 
   } catch (error) {
-    console.error('❌ Avatar video processing failed:', error);
+    console.error('❌ A2E avatar video processing failed:', error);
     
     // Update project with error
     await Project.findByIdAndUpdate(projectId, {
@@ -234,71 +275,85 @@ async function processAvatarVideoGeneration(projectId, avatar, script, aspectRat
   }
 }
 
-// Helper function to generate talking head video using D-ID
-async function generateTalkingHeadVideo(imageUrl, audioUrl, projectId, aspectRatio = '9:16', expression = 'neutral') {
+// Helper function to complete A2E video processing (called by webhook)
+async function completeA2EVideoProcessing(projectId, videoUrl, thumbnailUrl, metadata = {}) {
   try {
-    console.log('🎭 Generating talking head video with D-ID...');
-    console.log('📸 Image URL:', imageUrl);
-    console.log('🎵 Audio URL:', audioUrl);
-    console.log('⏱️ Duration: Auto-detected from audio by D-ID');
-    console.log('📐 Aspect Ratio:', aspectRatio);
-    console.log('😊 Expression:', expression);
+    console.log('� Completing A2E video processing for project:', projectId);
+    console.log('🎥 Video URL:', videoUrl);
+    console.log('🖼️ Thumbnail URL:', thumbnailUrl);
 
-    // Use D-ID's talking head generation with perfect lip-sync
-    const didResult = await didService.generateTalkingHead({
-      imageUrl,
-      audioUrl,
-      aspectRatio: aspectRatio, // User-selected aspect ratio (duration auto-detected)
-      expression: expression // User-selected expression
+    // Upload video to Cloudinary for our own storage
+    console.log('☁️ Uploading A2E video to Cloudinary...');
+    const cloudinaryResult = await cloudinary.uploader.upload(videoUrl, {
+      resource_type: 'video',
+      folder: 'avatar-videos-a2e',
+      public_id: `a2e_avatar_${projectId}_${Date.now()}`,
+      quality: 'auto:good'
     });
 
-    if (!didResult.success) {
-      return { success: false, error: didResult.error };
+    // Generate our own thumbnail if not provided
+    let finalThumbnailUrl = thumbnailUrl;
+    if (!thumbnailUrl) {
+      const thumbnailResult = await cloudinary.uploader.upload(cloudinaryResult.secure_url, {
+        resource_type: 'video',
+        folder: 'avatar-thumbnails-a2e',
+        public_id: `a2e_thumb_${projectId}_${Date.now()}`,
+        transformation: [
+          { width: 400, height: 600, crop: 'fill' },
+          { quality: 'auto:good' },
+          { format: 'jpg' },
+          { flags: 'attachment' }
+        ]
+      });
+      finalThumbnailUrl = thumbnailResult.secure_url;
     }
 
-    // Download from D-ID and upload to Cloudinary
-    console.log('☁️ Downloading from D-ID and uploading to Cloudinary...');
-    const cloudinaryResult = await didService.downloadAndUploadVideo(didResult.videoUrl, projectId);
-
-    // Generate thumbnail from the video
-    const thumbnailResult = await cloudinary.uploader.upload(cloudinaryResult.secure_url, {
-      resource_type: 'video',
-      folder: 'avatar-thumbnails',
-      public_id: `avatar_thumb_${projectId}_${Date.now()}`,
-      transformation: [
-        { width: 400, height: 600, crop: 'fill' },
-        { quality: 'auto:good' },
-        { format: 'jpg' },
-        { flags: 'attachment' }
-      ]
+    // Update project with final video
+    await Project.findByIdAndUpdate(projectId, {
+      status: 'completed',
+      videoUrl: cloudinaryResult.secure_url,
+      thumbnailUrl: finalThumbnailUrl,
+      processingCompletedAt: new Date(),
+      fileSize: cloudinaryResult.bytes,
+      dimensions: {
+        width: cloudinaryResult.width,
+        height: cloudinaryResult.height
+      },
+      metadata: {
+        a2e: metadata,
+        provider: 'a2e'
+      }
     });
 
-    return {
-      success: true,
-      videoUrl: cloudinaryResult.secure_url,
-      thumbnailUrl: thumbnailResult.secure_url,
-      duration: didResult.duration || cloudinaryResult.duration || 8,
-      fileSize: cloudinaryResult.bytes,
-      width: cloudinaryResult.width,
-      height: cloudinaryResult.height,
-      provider: 'did', // Indicate this was generated with D-ID
-      talkId: didResult.talkId // D-ID talk ID for reference
-    };
+    console.log('🎉 A2E avatar video project completed:', projectId);
+    return { success: true };
 
   } catch (error) {
-    console.error('❌ Talking head video generation error:', error);
+    console.error('❌ A2E video completion error:', error);
+    
+    // Update project with error
+    await Project.findByIdAndUpdate(projectId, {
+      status: 'failed',
+      errorMessage: error.message,
+      processingCompletedAt: new Date()
+    });
+    
     return { success: false, error: error.message };
   }
 }
 
-// GET /api/avatar-videos/credits - Check D-ID credits
-router.get('/credits', async (req, res) => {
+// Export the completion function for use in webhooks
+router.completeA2EVideoProcessing = completeA2EVideoProcessing;
+
+// GET /api/avatar-videos/status/:taskId - Check A2E task status
+router.get('/status/:taskId', async (req, res) => {
   try {
-    const credits = await didService.getCredits();
-    res.json(credits);
+    const { taskId } = req.params;
+    const status = await a2eService.getTaskStatus(taskId);
+    res.json(status);
   } catch (error) {
-    console.error('❌ Error checking D-ID credits:', error);
-    res.status(500).json({ error: 'Failed to check credits' });
+    console.error('❌ Error checking A2E task status:', error);
+    res.status(500).json({ error: 'Failed to check task status' });
   }
 });
 
@@ -347,6 +402,85 @@ router.get('/project/:id', async (req, res) => {
     console.error('❌ Error fetching avatar video project:', error);
     res.status(500).json({
       error: 'Failed to fetch project'
+    });
+  }
+});
+
+// POST /api/avatar-videos/webhook/a2e - A2E webhook endpoint
+router.post('/webhook/a2e', async (req, res) => {
+  try {
+    console.log('🔗 A2E Webhook received:', JSON.stringify(req.body, null, 2));
+    
+    const { taskId, status, videoUrl, thumbnailUrl, metadata } = req.body;
+    
+    if (!taskId) {
+      return res.status(400).json({ error: 'Task ID is required' });
+    }
+
+    // Find project by A2E task ID
+    const project = await Project.findOne({ taskId, provider: 'elevenlabs-a2e' });
+    
+    if (!project) {
+      console.log('⚠️ Project not found for A2E task ID:', taskId);
+      return res.status(404).json({ error: 'Project not found for task ID' });
+    }
+
+    console.log('📝 Found project:', project._id, 'for task:', taskId);
+
+    // Handle different status updates
+    switch (status) {
+      case 'completed':
+      case 'success':
+        if (videoUrl) {
+          console.log('✅ A2E video generation completed, processing final video...');
+          await completeA2EVideoProcessing(project._id, videoUrl, thumbnailUrl, metadata);
+        } else {
+          console.log('❌ A2E completed but no video URL provided');
+          await Project.findByIdAndUpdate(project._id, {
+            status: 'failed',
+            errorMessage: 'A2E completed but no video URL provided',
+            processingCompletedAt: new Date()
+          });
+        }
+        break;
+        
+      case 'failed':
+      case 'error':
+        console.log('❌ A2E video generation failed for task:', taskId);
+        await Project.findByIdAndUpdate(project._id, {
+          status: 'failed',
+          errorMessage: metadata?.error || 'A2E video generation failed',
+          processingCompletedAt: new Date()
+        });
+        break;
+        
+      case 'processing':
+      case 'in_progress':
+        console.log('🔄 A2E video generation in progress for task:', taskId);
+        await Project.findByIdAndUpdate(project._id, {
+          status: 'processing',
+          metadata: { a2e: metadata }
+        });
+        break;
+        
+      default:
+        console.log('🔄 A2E status update:', status, 'for task:', taskId);
+        await Project.findByIdAndUpdate(project._id, {
+          metadata: { a2e: { status, ...metadata } }
+        });
+    }
+
+    res.status(200).json({ 
+      message: 'Webhook processed successfully',
+      projectId: project._id,
+      taskId: taskId
+    });
+
+  } catch (error) {
+    console.error('❌ A2E webhook processing error:', error);
+    res.status(500).json({ 
+      error: 'Webhook processing failed',
+      details: error.message 
     });
   }
 });

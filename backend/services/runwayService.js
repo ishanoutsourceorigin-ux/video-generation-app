@@ -271,8 +271,8 @@ class RunwayService {
       const shortPrompt = this.createShortPrompt(prompt, veo3Duration);
       console.log(`📝 Shortened prompt (${shortPrompt.length} chars): "${shortPrompt}"`);
       
-      // Convert aspect ratio to VEO-3 supported format
-      const veo3Ratio = this.convertToVeo3Ratio(aspectRatio, resolution);
+      // Convert aspect ratio to VEO-3 supported format (keep pixel format)
+      const veo3Ratio = this.convertToVeo3PixelRatio(aspectRatio);
       console.log(`📐 Converted to VEO-3 ratio: ${aspectRatio} → ${veo3Ratio}`);
 
       // Generate seed if not provided
@@ -915,6 +915,108 @@ class RunwayService {
     }
 
     throw new Error(`Avatar video generation timeout after ${maxAttempts} attempts`);
+  }
+
+  // Convert aspect ratio to VEO-3 pixel format (for VEO-3 API)
+  convertToVeo3PixelRatio(aspectRatio) {
+    const pixelRatioMap = {
+      '720:1280': '720:1280',   // Portrait - already correct
+      '1280:720': '1280:720',   // Landscape - already correct  
+      '9:16': '720:1280',       // Portrait ratio → pixel format
+      '16:9': '1280:720',       // Landscape ratio → pixel format
+      '1080:1920': '720:1280',  // Portrait HD → VEO-3 format
+      '1920:1080': '1280:720',  // Landscape HD → VEO-3 format
+      '1024:1024': '1280:720',  // Square → default to landscape
+      '1:1': '1280:720'         // Square ratio → default to landscape
+    };
+    return pixelRatioMap[aspectRatio] || '1280:720'; // Default to landscape
+  }
+
+  // Convert aspect ratio to standard ratio format (for Gen-4)
+  convertToVeo3Ratio(aspectRatio, resolution) {
+    const ratioMap = {
+      '720:1280': '9:16',    // Vertical (Portrait)
+      '1280:720': '16:9',    // Landscape
+      '1024:1024': '1:1',    // Square
+      '1080:1920': '9:16',   // Vertical HD
+      '1920:1080': '16:9',   // Landscape HD
+      '9:16': '9:16',        // Already VEO-3 format
+      '16:9': '16:9',        // Already VEO-3 format
+      '1:1': '1:1'           // Already VEO-3 format
+    };
+    return ratioMap[aspectRatio] || '16:9'; // Default to landscape
+  }
+
+  // Validate VEO-3 parameters
+  validateVeo3Params(params) {
+    const errors = [];
+    
+    if (!params.prompt || params.prompt.trim().length < 10) {
+      errors.push('Prompt must be at least 10 characters long');
+    }
+    
+    if (params.prompt && params.prompt.length > 1000) {
+      errors.push('Prompt must be less than 1000 characters');
+    }
+    
+    const validDurations = [2, 4, 6, 8, 10]; // VEO-3 supported durations
+    if (!validDurations.includes(params.duration)) {
+      errors.push(`Duration must be one of: ${validDurations.join(', ')} seconds`);
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors: errors
+    };
+  }
+
+  // Shorten prompt for VEO-3 API limits
+  shortenPrompt(prompt, maxLength = 1000) {
+    if (prompt.length <= maxLength) {
+      return prompt;
+    }
+    return prompt.substring(0, maxLength - 3) + '...';
+  }
+
+  // Create optimized short prompt for VEO-3
+  createShortPrompt(originalPrompt, duration) {
+    try {
+      // If it's already JSON, parse and extract key elements
+      if (originalPrompt.trim().startsWith('{')) {
+        const parsed = JSON.parse(originalPrompt);
+        
+        // Build concise prompt from parsed data
+        let shortPrompt = '';
+        
+        if (parsed.title) {
+          shortPrompt += `${parsed.title}: `;
+        }
+        
+        if (parsed.description) {
+          shortPrompt += `${parsed.description.substring(0, 100)}... `;
+        }
+        
+        if (parsed.visual_style) {
+          shortPrompt += `Style: ${parsed.visual_style}. `;
+        }
+        
+        if (parsed.scene_style) {
+          shortPrompt += `Scenes: ${parsed.scene_style.substring(0, 200)}... `;
+        }
+        
+        if (parsed.mood) {
+          shortPrompt += `Mood: ${parsed.mood}. `;
+        }
+        
+        // Ensure under 1000 chars
+        return this.shortenPrompt(shortPrompt.trim(), 1000);
+      }
+    } catch (e) {
+      // If not valid JSON, treat as regular text
+    }
+    
+    // For non-JSON prompts, just shorten directly
+    return this.shortenPrompt(originalPrompt, 1000);
   }
 }
 

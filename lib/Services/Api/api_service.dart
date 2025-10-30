@@ -20,7 +20,7 @@ class ApiService {
       if (user == null) {
         print('❌ No user logged in - using dev mode headers');
         // For development mode - return headers without auth
-        return {'Content-Type': 'application/json'};                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+        return {'Content-Type': 'application/json'};
       }
 
       final token = await user.getIdToken();
@@ -31,7 +31,7 @@ class ApiService {
       };
     } catch (e) {
       print('❌ Error getting auth headers: $e');
-      // Fallback for development                                                                                              
+      // Fallback for development
       return {'Content-Type': 'application/json'};
     }
   }
@@ -155,13 +155,13 @@ class ApiService {
     }
   }
 
-  // Video API methods
+  // Video API methods - CloneX avatar video generation
   static Future<Map<String, dynamic>> createVideo({
     required String avatarId,
     required String title,
     required String script,
-    String? aspectRatio,
-    String? expression,
+    String? prompt,
+    String? negativePrompt,
   }) async {
     try {
       final headers = await _getHeaders();
@@ -169,8 +169,8 @@ class ApiService {
         'avatarId': avatarId,
         'title': title,
         'script': script,
-        if (aspectRatio != null) 'aspectRatio': aspectRatio,
-        if (expression != null) 'expression': expression,
+        if (prompt != null) 'prompt': prompt,
+        if (negativePrompt != null) 'negative_prompt': negativePrompt,
       });
 
       final response = await http.post(
