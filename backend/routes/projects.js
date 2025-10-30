@@ -49,14 +49,16 @@ const normalizeAspectRatio = (aspectRatio) => {
   return normalized;
 };
 
-// POST /api/projects/create-text-based - Create text-based video project (New Credit Reservation Flow)
+
+
+// POST /api/projects/create-text-based - Create text-based video project
 router.post('/create-text-based', async (req, res) => {
   try {
-    console.log('🎬 === STARTING TEXT-BASED VIDEO PROJECT CREATION (New Credit Flow) ===');
+    console.log('🎬 === STARTING TEXT-BASED VIDEO PROJECT CREATION ===');
     console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
     
     // Handle both direct values and nested configuration
-    let title, description, aspectRatio, resolution, duration, model, veo3Config, reservationId;
+    let title, description, aspectRatio, resolution, duration, model, veo3Config;
     
     if (req.body.configuration) {
       // Frontend sent nested configuration
@@ -67,7 +69,6 @@ router.post('/create-text-based', async (req, res) => {
       duration = parseInt(req.body.configuration.duration) || 8;
       model = req.body.model || 'veo3';
       veo3Config = req.body.veo3Config;
-      reservationId = req.body.reservationId; // Credit reservation ID from frontend
     } else {
       // Direct values in body
       const destructured = req.body;
@@ -78,20 +79,10 @@ router.post('/create-text-based', async (req, res) => {
       duration = destructured.duration || 8;
       model = destructured.model || 'veo3';
       veo3Config = destructured.veo3Config;
-      reservationId = destructured.reservationId; // Credit reservation ID from frontend
     }
 
     const userId = getUserId(req);
     console.log('👤 User ID:', userId);
-    console.log('💳 Credit Reservation ID:', reservationId);
-
-    // Check if credit reservation is provided (new flow requirement)
-    if (!reservationId && !userId.startsWith('dev-user-')) {
-      console.log('❌ No credit reservation provided');
-      return res.status(400).json({
-        error: 'Credit reservation required. Please reserve credits before creating project.'
-      });
-    }
 
     // VEO-3 specific validation
     if (model === 'veo-3' || veo3Config) {
@@ -151,7 +142,7 @@ router.post('/create-text-based', async (req, res) => {
     console.log('✅ All validations passed');
     console.log('📋 Project config:', { title, description, aspectRatio, resolution, duration, model });
 
-    // Create project with credit reservation info
+    // Create project
     console.log('💾 Creating project in database...');
     const project = new Project({
       userId,
@@ -167,14 +158,6 @@ router.post('/create-text-based', async (req, res) => {
         veo3Config: veo3Config || null,
       },
       provider: 'runway',
-      creditReservation: reservationId ? {
-        reservationId,
-        creditsReserved: 320, // Standard text-to-video cost
-        creditStatus: 'reserved',
-        reservedAt: new Date()
-      } : {
-        creditStatus: 'none' // Dev mode
-      }
     });
 
     await project.save();
@@ -202,7 +185,6 @@ router.post('/create-text-based', async (req, res) => {
         status: project.status,
         type: project.type,
         configuration: project.configuration,
-        creditReservation: project.creditReservation,
         createdAt: project.createdAt,
         estimatedCompletionTime: project.estimatedCompletionTime,
       }
@@ -210,19 +192,6 @@ router.post('/create-text-based', async (req, res) => {
 
   } catch (error) {
     console.error('Create text-based project error:', error);
-    
-    // If project creation fails, return reserved credits
-    if (req.body.reservationId && !getUserId(req).startsWith('dev-user-')) {
-      console.log('🔄 Project creation failed - returning reserved credits...');
-      const CreditReservationService = require('../services/creditReservationService');
-      await CreditReservationService.returnReservation({
-        userId: getUserId(req),
-        reservationId: req.body.reservationId,
-        projectId: 'failed-creation',
-        reason: `Project creation failed: ${error.message}`
-      });
-    }
-    
     res.status(500).json({
       error: error.message || 'Failed to create text-based video project'
     });
@@ -791,29 +760,6 @@ async function processTextBasedVideoGeneration(projectId, config) {
     
     const project = await Project.findById(projectId);
     if (project) {
-      // RETURN CREDITS: Video generation failed
-      if (project.creditReservation && project.creditReservation.creditStatus === 'reserved') {
-        console.log('🔄 Returning reserved credits due to video generation failure...');
-        const CreditReservationService = require('../services/creditReservationService');
-        const returnResult = await CreditReservationService.returnReservation({
-          userId: project.userId,
-          reservationId: project.creditReservation.reservationId,
-          projectId: projectId,
-          reason: `Video generation failed: ${error.message}`
-        });
-        
-        if (returnResult.success) {
-          console.log(`✅ Credits returned: ${returnResult.creditsReturned} credits refunded`);
-          // Update project's credit status
-          await Project.findByIdAndUpdate(projectId, {
-            'creditReservation.creditStatus': 'returned',
-            'creditReservation.returnedAt': new Date()
-          });
-        } else {
-          console.error('❌ Failed to return credits:', returnResult.error);
-        }
-      }
-      
       await project.updateStatus('failed', {
         errorMessage: error.message,
       });
@@ -1124,29 +1070,6 @@ async function handleVideoCompletion(projectId, runwayVideoUrl, project) {
     });
 
     console.log(`✅ Text-based video generation completed for project ${projectId}`);
-    
-    // CONFIRM CREDITS: Video generation successful
-    if (project.creditReservation && project.creditReservation.creditStatus === 'reserved') {
-      console.log('💳 Confirming reserved credits for successful video generation...');
-      const CreditReservationService = require('../services/creditReservationService');
-      const confirmResult = await CreditReservationService.confirmReservation({
-        userId: project.userId,
-        reservationId: project.creditReservation.reservationId,
-        projectId: projectId
-      });
-      
-      if (confirmResult.success) {
-        console.log(`✅ Credits confirmed: ${confirmResult.creditsConsumed} credits deducted`);
-        // Update project's credit status
-        await Project.findByIdAndUpdate(projectId, {
-          'creditReservation.creditStatus': 'confirmed',
-          'creditReservation.confirmedAt': new Date()
-        });
-      } else {
-        console.error('❌ Failed to confirm credits:', confirmResult.error);
-      }
-    }
-    
     console.log('🎉 === VIDEO GENERATION PROCESS COMPLETED SUCCESSFULLY ===');
 
   } catch (error) {
@@ -1265,29 +1188,6 @@ async function handleVideoCompletion(projectId, runwayVideoUrl, project) {
         
       } catch (fallbackError) {
         console.error(`❌ Fallback storage also failed for project ${projectId}:`, fallbackError);
-      }
-    }
-    
-    // RETURN CREDITS: Video upload failed
-    if (project.creditReservation && project.creditReservation.creditStatus === 'reserved') {
-      console.log('🔄 Returning reserved credits due to video upload failure...');
-      const CreditReservationService = require('../services/creditReservationService');
-      const returnResult = await CreditReservationService.returnReservation({
-        userId: project.userId,
-        reservationId: project.creditReservation.reservationId,
-        projectId: project._id,
-        reason: `Video upload failed: ${error.message}`
-      });
-      
-      if (returnResult.success) {
-        console.log(`✅ Credits returned: ${returnResult.creditsReturned} credits refunded`);
-        // Update project's credit status
-        await Project.findByIdAndUpdate(project._id, {
-          'creditReservation.creditStatus': 'returned',
-          'creditReservation.returnedAt': new Date()
-        });
-      } else {
-        console.error('❌ Failed to return credits:', returnResult.error);
       }
     }
     

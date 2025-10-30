@@ -41,11 +41,6 @@ const userSchema = new mongoose.Schema({
     default: 0, // New users start with 0 credits (must purchase)
     min: 0,
   },
-  reservedCredits: {
-    type: Number,
-    default: 0, // Credits reserved for pending video generation
-    min: 0,
-  },
   totalPurchased: {
     type: Number,
     default: 0,
