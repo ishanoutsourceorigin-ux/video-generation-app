@@ -540,7 +540,12 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               _formatDate(project!['processingCompletedAt']),
             ),
           if (project!['errorMessage'] != null)
-            _buildInfoRow('Error', project!['errorMessage'], isError: true),
+            _buildInfoRow(
+              'Error',
+              "Video generation failed. Please try again.",
+              isError: true,
+            ),
+          // _buildInfoRow('Error', project!['errorMessage'], isError: true),
         ],
       ),
     );
