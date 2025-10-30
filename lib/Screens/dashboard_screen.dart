@@ -36,7 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     'totalProjects': 0,
     'completedProjects': 0,
     'availableCredits': 0, // New users start with 0 credits
-    'totalSpent': 0.0, // New users haven't spent anything
+    'totalTimeSaved': '0h', // New users haven't saved time yet
     'creditsPurchased': 0,
     'creditsUsed': 0,
     'totalTransactions': 0,
@@ -646,10 +646,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       imagePath: "images/completed-icon.png",
                                     ),
                                     DashboardCard(
-                                      title: "Total Spent",
+                                      title: "Time Saved",
                                       value:
-                                          "\$${_dashboardStats['totalSpent']?.toString() ?? "0"}",
-                                      imagePath: "images/money-icon.png",
+                                          _dashboardStats['totalTimeSaved']
+                                              ?.toString() ??
+                                          "0h",
+                                      imagePath: "images/timer-icon.png",
                                     ),
                                   ],
                                 );

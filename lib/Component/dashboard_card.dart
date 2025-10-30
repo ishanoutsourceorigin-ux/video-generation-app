@@ -24,7 +24,7 @@ class DashboardCard extends StatelessWidget {
         // Responsive sizing
         final cardPadding = isTablet ? 20.0 : 16.0;
         final titleFontSize = isTablet ? 18.0 : 16.0;
-        final valueFontSize = isTablet ? 40.0 : (isLandscape ? 28.0 : 34.0);
+        final valueFontSize = isTablet ? 28.0 : (isLandscape ? 20.0 : 24.0);
         final imageSize = isTablet ? 60.0 : (isLandscape ? 40.0 : 50.0);
         final containerPadding = isTablet ? 12.0 : 8.0;
 
@@ -52,18 +52,7 @@ class DashboardCard extends StatelessWidget {
               Flexible(
                 child: Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        value,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: valueFontSize,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+                    Expanded(child: _buildValueText(value, valueFontSize)),
                     const SizedBox(width: 8),
                     Container(
                       padding: EdgeInsets.all(containerPadding),
@@ -90,6 +79,59 @@ class DashboardCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  // Smart text builder that handles wrapping for time values
+  Widget _buildValueText(String value, double fontSize) {
+    // Check if value contains space and is likely a time format
+    if (value.contains(' ') &&
+        (value.contains('h') || value.contains('m') || value.contains('d'))) {
+      // Split the value for potential wrapping
+      final parts = value.split(' ');
+      if (parts.length >= 2) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              parts[0], // First part (e.g., "2h")
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: fontSize,
+                fontWeight: FontWeight.bold,
+                height: 1.0,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (parts.length > 1)
+              Text(
+                parts.sublist(1).join(' '), // Remaining parts (e.g., "10min")
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: fontSize * 0.8, // Slightly smaller for second line
+                  fontWeight: FontWeight.bold,
+                  height: 1.0,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        );
+      }
+    }
+
+    // Default single line text for other values
+    return Text(
+      value,
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: fontSize,
+        fontWeight: FontWeight.bold,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

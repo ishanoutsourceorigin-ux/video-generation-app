@@ -36,9 +36,9 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
   //   {'label': '1080p', 'value': '1080'},
   // ];
 
-  final List<Map<String, String>> _durations = [
-    {'label': '8 seconds', 'value': '8'}, // VEO-3 only supports 8s
-  ];
+  // final List<Map<String, String>> _durations = [
+  //   {'label': '8 seconds', 'value': '8'}, // VEO-3 only supports 8s
+  // ];
   @override
   void dispose() {
     _titleController.dispose();

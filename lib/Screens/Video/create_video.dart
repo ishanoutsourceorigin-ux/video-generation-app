@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_gen_app/Utils/app_colors.dart';
 import 'package:video_gen_app/Utils/animated_page_route.dart';
-import 'package:video_gen_app/Screens/Video/text_based_video_screen.dart';
 import 'package:video_gen_app/Screens/Avatar/my_avatars_screen.dart';
 import 'package:video_gen_app/Services/credit_system_service.dart';
 import 'package:video_gen_app/Component/credit_usage_widget.dart';
@@ -120,6 +119,84 @@ class _CreateVideoState extends State<CreateVideo> {
     );
   }
 
+  void _showComingSoonDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.darkGreyColor,
+        title: Row(
+          children: [
+            Icon(Icons.upcoming, color: AppColors.blueColor, size: 24),
+            const SizedBox(width: 12),
+            const Text('Coming Soon', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Text-based video generation feature is under development and will be available in the next update.',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.blueColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.blueColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    color: AppColors.blueColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Try Avatar Videos in the meantime!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it', style: TextStyle(color: Colors.white)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _checkCreditsAndNavigate(
+                videoType: 'avatar-video',
+                destination: const MyAvatarsScreen(),
+                durationMinutes: 1,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.blueColor,
+            ),
+            child: const Text(
+              'Try Avatar Videos',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -224,10 +301,11 @@ class _CreateVideoState extends State<CreateVideo> {
                 title: "Text-Based Video",
                 subtitle: "Generate video from text description",
                 creditsRequired: 320,
-                onTap: () => _checkCreditsAndNavigate(
-                  videoType: 'text-to-video',
-                  destination: const TextBasedVideoScreen(),
-                ),
+                // onTap: () => _checkCreditsAndNavigate(
+                //   videoType: 'text-to-video',
+                //   destination: const TextBasedVideoScreen(),
+                // ),
+                onTap: () => _showComingSoonDialog(),
               ),
               const SizedBox(height: 20),
 

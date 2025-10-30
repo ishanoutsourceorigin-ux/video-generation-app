@@ -62,7 +62,7 @@ class DashboardService {
         'totalProjects': 0,
         'completedProjects': 0,
         'availableCredits': 0,
-        'totalSpent': 0.0,
+        'totalTimeSaved': '0h',
         'creditsPurchased': 0,
         'creditsUsed': 0,
         'totalTransactions': 0,
@@ -167,6 +167,10 @@ class DashboardService {
         stats['totalSpent'] = 0.0;
       }
 
+      // Calculate total time saved
+      final timeSaved = await calculateTimeSaved();
+      stats['totalTimeSaved'] = timeSaved;
+
       return stats;
     } catch (e) {
       // Return default values on error
@@ -175,7 +179,7 @@ class DashboardService {
         'totalProjects': 0,
         'completedProjects': 0,
         'availableCredits': 5,
-        'totalSpent': 85.0,
+        'totalTimeSaved': '0h',
         'creditsPurchased': 0,
         'creditsUsed': 0,
         'totalTransactions': 0,
@@ -323,6 +327,115 @@ class DashboardService {
       return '${minutes.toString().padLeft(1, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
     } catch (e) {
       return '0:00';
+    }
+  }
+
+  // Calculate total time saved based on completed projects
+  static Future<String> calculateTimeSaved() async {
+    try {
+      // Get completed projects to calculate time saved
+      final completedProjects = await _getCompletedProjectsWithDetails();
+
+      double totalTimeSavedHours = 0.0;
+
+      for (final project in completedProjects) {
+        // Get video duration in seconds
+        final durationStr = project['duration']?.toString() ?? '0';
+        final videoSeconds = int.tryParse(durationStr) ?? 0;
+        final videoMinutes = videoSeconds / 60.0;
+
+        // Calculate time saved based on project type
+        double timeSavedForProject = 0.0;
+
+        if (project['type'] == 'text-based') {
+          // Text-based video generation
+          // Manual editing: ~3 hours per minute of video (includes scripting, editing, rendering)
+          // Our app: ~8-10 minutes (AI generation time)
+          final manualTime = videoMinutes * 3.0; // 3 hours per minute
+          final ourAppTime = 10.0 / 60.0; // 10 minutes in hours
+          timeSavedForProject = manualTime - ourAppTime;
+        } else if (project['type'] == 'avatar-based') {
+          // Avatar video generation
+          // Manual editing: ~2 hours per minute (recording, editing, post-production)
+          // Our app: ~5-8 minutes (avatar + voice generation)
+          final manualTime = videoMinutes * 2.0; // 2 hours per minute
+          final ourAppTime = 6.0 / 60.0; // 6 minutes in hours
+          timeSavedForProject = manualTime - ourAppTime;
+        }
+
+        // Ensure we don't have negative time saved
+        if (timeSavedForProject > 0) {
+          totalTimeSavedHours += timeSavedForProject;
+        }
+      }
+
+      // Format the time saved for display
+      return _formatTimeSaved(totalTimeSavedHours);
+    } catch (e) {
+      print('Error calculating time saved: $e');
+      return "0h";
+    }
+  }
+
+  // Get completed projects with details for time calculation
+  static Future<List<Map<String, dynamic>>>
+  _getCompletedProjectsWithDetails() async {
+    try {
+      final headers = await _getHeaders();
+
+      final uri = Uri.parse('$baseUrl/projects').replace(
+        queryParameters: {
+          'status': 'completed',
+          'limit': '100', // Get all completed projects
+          'page': '1',
+        },
+      );
+
+      final response = await http.get(uri, headers: headers);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final projects = data['projects'] as List? ?? [];
+
+        return projects.map<Map<String, dynamic>>((project) {
+          return {
+            'type': project['type'] ?? 'text-based',
+            'duration':
+                project['configuration']?['duration']?.toString() ??
+                '8', // Default 8 seconds
+            'createdAt': project['createdAt'] ?? '',
+          };
+        }).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('Error fetching completed projects: $e');
+      return [];
+    }
+  }
+
+  // Format time saved in a user-friendly way
+  static String _formatTimeSaved(double totalHours) {
+    if (totalHours < 1) {
+      final minutes = (totalHours * 60).round();
+      return "${minutes}m";
+    } else if (totalHours < 24) {
+      final hours = totalHours.floor();
+      final minutes = ((totalHours - hours) * 60).round();
+      if (minutes == 0) {
+        return "${hours}h";
+      } else {
+        return "${hours}h ${minutes}m";
+      }
+    } else {
+      final days = (totalHours / 24).floor();
+      final remainingHours = (totalHours % 24).floor();
+      if (remainingHours == 0) {
+        return "${days}d";
+      } else {
+        return "${days}d ${remainingHours}h";
+      }
     }
   }
 }
