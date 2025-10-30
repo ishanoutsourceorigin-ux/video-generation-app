@@ -97,6 +97,22 @@ const projectSchema = new mongoose.Schema({
     type: String, // External provider task ID
     required: false,
   },
+  
+  // Credit Management
+  creditReservation: {
+    reservationId: { type: String, required: false },
+    transactionId: { type: String, required: false },
+    creditsReserved: { type: Number, default: 0 },
+    creditStatus: {
+      type: String,
+      enum: ['reserved', 'confirmed', 'returned', 'none'],
+      default: 'none'
+    },
+    reservedAt: { type: Date, required: false },
+    confirmedAt: { type: Date, required: false },
+    returnedAt: { type: Date, required: false },
+  },
+  
   processingStartedAt: {
     type: Date,
     required: false,
