@@ -162,6 +162,7 @@ class ApiService {
     required String script,
     String? prompt,
     String? negativePrompt,
+    String? clientProjectId,
   }) async {
     try {
       final headers = await _getHeaders();
@@ -171,6 +172,7 @@ class ApiService {
         'script': script,
         if (prompt != null) 'prompt': prompt,
         if (negativePrompt != null) 'negative_prompt': negativePrompt,
+        if (clientProjectId != null) 'clientProjectId': clientProjectId,
       });
 
       final response = await http.post(
@@ -522,6 +524,7 @@ class ApiService {
     required String aspectRatio,
     required String resolution,
     required String duration,
+    String? clientProjectId,
   }) async {
     try {
       print('🎬 === STARTING TEXT-BASED PROJECT CREATION ===');
@@ -541,6 +544,7 @@ class ApiService {
         'aspectRatio': aspectRatio,
         'resolution': int.parse(resolution),
         'duration': int.parse(duration),
+        if (clientProjectId != null) 'clientProjectId': clientProjectId,
       });
 
       print('� Request body created: $body');

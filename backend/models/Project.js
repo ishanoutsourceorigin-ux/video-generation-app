@@ -211,7 +211,8 @@ projectSchema.virtual('estimatedTimeRemaining').get(function() {
 });
 
 // Methods
-projectSchema.methods.updateStatus = function(status, additionalData = {}) {
+projectSchema.methods.updateStatus = async function(status, additionalData = {}) {
+  const previousStatus = this.status;
   this.status = status;
   
   if (status === 'processing' && !this.processingStartedAt) {
@@ -233,7 +234,59 @@ projectSchema.methods.updateStatus = function(status, additionalData = {}) {
   // Merge additional data
   Object.assign(this, additionalData);
   
-  return this.save();
+  // Save the project first
+  const savedProject = await this.save();
+  
+  // Handle credit management based on status change
+  if (previousStatus !== status && this.userId) {
+    try {
+      if (status === 'completed') {
+        // Auto-confirm credits when project completes successfully
+        const User = require('./User');
+        const user = await User.findByUid(this.userId);
+        if (user && user.reservedCredits && user.reservedCredits.has(this._id.toString())) {
+          const reservation = user.reservedCredits.get(this._id.toString());
+          
+          // NOW subtract credits from available balance (confirmation)
+          const currentCredits = user.availableCredits || user.credits || 0;
+          user.availableCredits = currentCredits - reservation.credits;
+          user.credits = user.availableCredits;
+          
+          // Mark credits as used
+          user.totalUsed = (user.totalUsed || 0) + reservation.credits;
+          user.usage.totalCreditsUsed = (user.usage.totalCreditsUsed || 0) + reservation.credits;
+          
+          // Remove reservation
+          user.reservedCredits.delete(this._id.toString());
+          user.lastActiveAt = new Date();
+          await user.save();
+          
+          console.log(`✅ Auto-confirmed ${reservation.credits} credits for completed project ${this._id}`);
+        }
+      } else if (status === 'failed') {
+        // Auto-refund credits when project fails
+        const User = require('./User');
+        const user = await User.findByUid(this.userId);
+        if (user && user.reservedCredits && user.reservedCredits.has(this._id.toString())) {
+          const reservation = user.reservedCredits.get(this._id.toString());
+          
+          // Release credits (since they were never subtracted during reservation, just remove reservation)
+          // No need to add credits back - they were never taken away
+          
+          // Remove reservation
+          user.reservedCredits.delete(this._id.toString());
+          user.lastActiveAt = new Date();
+          await user.save();
+          
+          console.log(`🔄 Auto-released ${reservation.credits} credits reservation for failed project ${this._id}`);
+        }
+      }
+    } catch (creditError) {
+      console.error(`❌ Error handling credits for project ${this._id}:`, creditError);
+    }
+  }
+  
+  return savedProject;
 };
 
 projectSchema.methods.incrementRetry = function() {

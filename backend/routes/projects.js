@@ -6,6 +6,7 @@ const fetch = require('node-fetch'); // Add this for streaming
 const Project = require('../models/Project');
 const Video = require('../models/Video');
 const Avatar = require('../models/Avatar');
+const User = require('../models/User');
 const RunwayService = require('../services/runwayService');
 const elevenLabsService = require('../services/elevenLabsService');
 
@@ -34,6 +35,78 @@ const getUserId = (req) => {
   }
 };
 
+// Helper function to automatically refund credits when project fails
+const autoRefundCredits = async (projectId, userId) => {
+  try {
+    console.log(`🔄 Auto-refunding credits for failed project ${projectId}...`);
+    
+    const user = await User.findByUid(userId);
+    if (!user || !user.reservedCredits) {
+      console.log(`No user or reserved credits found for ${userId}`);
+      return false;
+    }
+
+    const reservation = user.reservedCredits.get(projectId);
+    if (!reservation) {
+      console.log(`No credit reservation found for project ${projectId}`);
+      return false;
+    }
+
+    // Refund credits
+    user.availableCredits = (user.availableCredits || 0) + reservation.credits;
+    user.credits = user.availableCredits;
+    
+    // Remove reservation
+    user.reservedCredits.delete(projectId);
+    
+    user.lastActiveAt = new Date();
+    await user.save();
+
+    console.log(`✅ Auto-refunded ${reservation.credits} credits for failed project ${projectId}`);
+    return true;
+    
+  } catch (error) {
+    console.error(`❌ Error auto-refunding credits for project ${projectId}:`, error);
+    return false;
+  }
+};
+
+// Helper function to confirm credits when project completes successfully
+const autoConfirmCredits = async (projectId, userId) => {
+  try {
+    console.log(`✅ Auto-confirming credits for completed project ${projectId}...`);
+    
+    const user = await User.findByUid(userId);
+    if (!user || !user.reservedCredits) {
+      console.log(`No user or reserved credits found for ${userId}`);
+      return false;
+    }
+
+    const reservation = user.reservedCredits.get(projectId);
+    if (!reservation) {
+      console.log(`No credit reservation found for project ${projectId}`);
+      return false;
+    }
+
+    // Mark credits as used
+    user.totalUsed = (user.totalUsed || 0) + reservation.credits;
+    user.usage.totalCreditsUsed = (user.usage.totalCreditsUsed || 0) + reservation.credits;
+    
+    // Remove reservation
+    user.reservedCredits.delete(projectId);
+    
+    user.lastActiveAt = new Date();
+    await user.save();
+
+    console.log(`✅ Auto-confirmed ${reservation.credits} credits usage for project ${projectId}`);
+    return true;
+    
+  } catch (error) {
+    console.error(`❌ Error auto-confirming credits for project ${projectId}:`, error);
+    return false;
+  }
+};
+
 // Helper function to normalize aspect ratio
 const normalizeAspectRatio = (aspectRatio) => {
   const ratioMap = {
@@ -58,7 +131,7 @@ router.post('/create-text-based', async (req, res) => {
     console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
     
     // Handle both direct values and nested configuration
-    let title, description, aspectRatio, resolution, duration, model, veo3Config;
+    let title, description, aspectRatio, resolution, duration, model, veo3Config, clientProjectId;
     
     if (req.body.configuration) {
       // Frontend sent nested configuration
@@ -69,6 +142,7 @@ router.post('/create-text-based', async (req, res) => {
       duration = parseInt(req.body.configuration.duration) || 8;
       model = req.body.model || 'veo3';
       veo3Config = req.body.veo3Config;
+      clientProjectId = req.body.clientProjectId; // For credit reservation tracking
     } else {
       // Direct values in body
       const destructured = req.body;
@@ -79,6 +153,7 @@ router.post('/create-text-based', async (req, res) => {
       duration = destructured.duration || 8;
       model = destructured.model || 'veo3';
       veo3Config = destructured.veo3Config;
+      clientProjectId = destructured.clientProjectId; // For credit reservation tracking
     }
 
     const userId = getUserId(req);
@@ -162,6 +237,34 @@ router.post('/create-text-based', async (req, res) => {
 
     await project.save();
     console.log('✅ Project created with ID:', project._id);
+
+    // Transfer credit reservation from client ID to actual project ID
+    if (clientProjectId) {
+      console.log('💳 NEW CREDIT SYSTEM: Transferring credit reservation...');
+      try {
+        const User = require('../models/User');
+        const user = await User.findOne({ uid: userId });
+        
+        if (user && user.reservedCredits && user.reservedCredits.has(clientProjectId)) {
+          const reservation = user.reservedCredits.get(clientProjectId);
+          console.log(`🔄 Transferring ${reservation.credits} credits from ${clientProjectId} to ${project._id}`);
+          
+          // Move reservation to actual project ID
+          user.reservedCredits.set(project._id.toString(), reservation);
+          user.reservedCredits.delete(clientProjectId);
+          
+          await user.save();
+          console.log('✅ Credit reservation transferred successfully');
+        } else {
+          console.log('⚠️ No credit reservation found for clientProjectId:', clientProjectId);
+        }
+      } catch (error) {
+        console.error('❌ Error transferring credit reservation:', error);
+        // Don't fail the project creation for this
+      }
+    } else {
+      console.log('💡 No clientProjectId provided - credits should be handled manually');
+    }
 
     // Start async video generation
     console.log('🚀 Starting async video generation process...');

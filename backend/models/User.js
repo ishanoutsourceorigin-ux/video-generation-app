@@ -64,6 +64,23 @@ const userSchema = new mongoose.Schema({
     min: 0,
   },
   
+  // Credit reservations for pending video generations
+  reservedCredits: {
+    type: Map,
+    of: {
+      credits: Number,
+      videoType: String,
+      durationMinutes: Number,
+      reservedAt: Date,
+      status: {
+        type: String,
+        enum: ['reserved', 'confirmed', 'refunded'],
+        default: 'reserved'
+      }
+    },
+    default: {}
+  },
+  
   // Profile Information
   profession: {
     type: String,

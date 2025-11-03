@@ -3,7 +3,7 @@
 class Environment {
   /// Whether the app is running in production mode
   static const bool isProduction =
-      true; // Set to true for production build with Render backend
+      false; // Set to true for production build with Render backend
 
   /// Development backend URL (local development)
   /// Use 10.0.2.2:5000 for Android emulator or your computer's IP for physical device

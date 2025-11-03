@@ -400,53 +400,97 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
 
       print("✅ Credits check passed - user has enough credits");
 
-      // CONSUME CREDITS BEFORE VIDEO GENERATION
-      print("💳 Consuming credits before video generation...");
-      final creditsConsumed = await CreditSystemService.consumeCredits(
+      // NEW FLOW: RESERVE CREDITS BEFORE VIDEO GENERATION
+      final projectId = 'project-${DateTime.now().millisecondsSinceEpoch}';
+      print("� Reserving credits for project $projectId...");
+      
+      final creditsReserved = await CreditSystemService.reserveCredits(
         videoType: 'avatar-video',
         durationMinutes: estimatedMinutes,
-        projectId: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+        projectId: projectId,
       );
 
-      if (!creditsConsumed) {
-        print("❌ Failed to consume credits");
+      if (!creditsReserved) {
+        print("❌ Failed to reserve credits");
         setState(() {
           _isGenerating = false;
         });
-        _showError("Failed to deduct credits. Please try again.");
+        _showError("Failed to reserve credits. Please try again.");
         return;
       }
 
-      print("✅ Credits consumed successfully");
+      print("✅ Credits reserved successfully");
       print("🎬 Starting video generation...");
       print("📹 Title: ${_titleController.text.trim()}");
       print("📝 Script: ${_scriptController.text.trim()}");
       print("👤 Avatar ID: $avatarId");
 
-      final result = await ApiService.createVideo(
-        avatarId: avatarId,
-        title: _titleController.text.trim(),
-        script: _scriptController.text.trim(),
-        prompt: _promptController.text.trim().isNotEmpty
-            ? _promptController.text.trim()
-            : _defaultPrompt,
-        negativePrompt: _negativePromptController.text.trim().isNotEmpty
-            ? _negativePromptController.text.trim()
-            : _defaultNegativePrompt,
-      );
+      try {
+        final result = await ApiService.createVideo(
+          avatarId: avatarId,
+          title: _titleController.text.trim(),
+          script: _scriptController.text.trim(),
+          prompt: _promptController.text.trim().isNotEmpty
+              ? _promptController.text.trim()
+              : _defaultPrompt,
+          negativePrompt: _negativePromptController.text.trim().isNotEmpty
+              ? _negativePromptController.text.trim()
+              : _defaultNegativePrompt,
+          clientProjectId: projectId, // Pass the reserved project ID
+        );
 
-      print("✅ Video generation started: $result");
+        print("✅ Video generation started: $result");
 
-      // Success
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Avatar video generation started! You'll be notified when it's ready.",
+        // If we have a project ID from the result, confirm credits with that ID
+        String? resultProjectId;
+        try {
+          resultProjectId = result['projectId'] ?? result['project']?['_id'];
+        } catch (e) {
+          print("Could not extract project ID from result: $e");
+        }
+        
+        // Confirm credits with the actual project ID (or fallback to temp ID)
+        final creditConfirmed = await CreditSystemService.confirmCredits(
+          projectId: resultProjectId ?? projectId,
+        );
+
+        if (!creditConfirmed) {
+          print("⚠️ Warning: Could not confirm credits, but video generation started");
+        }
+
+        // Success
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Avatar video generation started! You'll be notified when it's ready.",
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
           ),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 4),
-        ),
-      );
+        );
+
+      } catch (videoError) {
+        print("❌ Video generation failed: $videoError");
+        
+        // REFUND RESERVED CREDITS
+        print("🔄 Refunding reserved credits...");
+        final creditRefunded = await CreditSystemService.refundCredits(
+          projectId: projectId,
+        );
+
+        if (creditRefunded) {
+          print("✅ Credits refunded successfully");
+        } else {
+          print("⚠️ Warning: Could not refund credits");
+        }
+
+        setState(() {
+          _isGenerating = false;
+        });
+        
+        _showError("Video generation failed. Your credits have been refunded.");
+        return;
+      }
 
       print("🏠 Navigating to avatar videos screen...");
       // Navigate to avatar videos screen (same as text video flow)

@@ -301,7 +301,198 @@ router.post('/add-credits', authMiddleware, async (req, res) => {
   }
 });
 
-// Consume credits for video generation
+// Reserve credits for video generation (NEW FLOW)
+router.post('/reserve-credits', authMiddleware, async (req, res) => {
+  try {
+    const { credits, videoType, durationMinutes, projectId } = req.body;
+    
+    if (!credits || !videoType || !projectId) {
+      return res.status(400).json({
+        error: 'Missing required fields: credits, videoType, projectId'
+      });
+    }
+
+    const User = require('../models/User');
+    let user = await User.findByUid(req.user.uid);
+    
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    const currentCredits = user.availableCredits || user.credits || 0;
+    
+    if (currentCredits < credits) {
+      return res.status(400).json({
+        error: 'Insufficient credits',
+        required: credits,
+        available: currentCredits
+      });
+    }
+
+    // Reserve credits (DON'T subtract from available yet - only mark as reserved)
+    // Credits are only subtracted when confirmed, not during reservation
+    
+    // Initialize reservedCredits if not exists
+    if (!user.reservedCredits) {
+      user.reservedCredits = new Map();
+    }
+    
+    // Store reservation
+    user.reservedCredits.set(projectId, {
+      credits: credits,
+      videoType: videoType,
+      durationMinutes: durationMinutes,
+      reservedAt: new Date(),
+      status: 'reserved'
+    });
+    
+    console.log(`💰 Reserved ${credits} credits for project ${projectId} (NOT deducted yet)`);
+    console.log(`📊 User ${user.name} still has ${currentCredits} available credits`);
+
+    user.lastActiveAt = new Date();
+    await user.save();
+
+    console.log(`💰 Reserved ${credits} credits for project ${projectId}`);
+
+    res.json({
+      success: true,
+      newBalance: currentCredits, // Balance unchanged during reservation
+      reservedCredits: credits,
+      reservationId: projectId
+    });
+
+  } catch (error) {
+    console.error('Reserve credits error:', error);
+    res.status(500).json({
+      error: 'Failed to reserve credits'
+    });
+  }
+});
+
+// Confirm credit usage (called when video generation succeeds)
+router.post('/confirm-credits', authMiddleware, async (req, res) => {
+  try {
+    const { projectId } = req.body;
+    
+    if (!projectId) {
+      return res.status(400).json({
+        error: 'Missing projectId'
+      });
+    }
+
+    const User = require('../models/User');
+    let user = await User.findByUid(req.user.uid);
+    
+    if (!user || !user.reservedCredits || !user.reservedCredits[projectId]) {
+      return res.status(404).json({
+        error: 'No credit reservation found for this project'
+      });
+    }
+
+    const reservation = user.reservedCredits.get ? user.reservedCredits.get(projectId) : user.reservedCredits[projectId];
+    
+    if (!reservation) {
+      return res.status(404).json({
+        error: 'Credit reservation not found'
+      });
+    }
+    
+    // NOW subtract credits from available balance
+    const currentCredits = user.availableCredits || user.credits || 0;
+    user.availableCredits = currentCredits - reservation.credits;
+    user.credits = user.availableCredits;
+    
+    // Mark credits as used
+    user.totalUsed = (user.totalUsed || 0) + reservation.credits;
+    user.usage.totalCreditsUsed = (user.usage.totalCreditsUsed || 0) + reservation.credits;
+    
+    // Remove reservation (handle both Map and object formats)
+    if (user.reservedCredits.delete) {
+      user.reservedCredits.delete(projectId);
+    } else {
+      delete user.reservedCredits[projectId];
+    }
+    
+    user.lastActiveAt = new Date();
+    await user.save();
+
+    console.log(`✅ Confirmed ${reservation.credits} credits usage for project ${projectId}`);
+
+    res.json({
+      success: true,
+      creditsUsed: reservation.credits,
+      newBalance: user.availableCredits
+    });
+
+  } catch (error) {
+    console.error('Confirm credits error:', error);
+    res.status(500).json({
+      error: 'Failed to confirm credits'
+    });
+  }
+});
+
+// Refund reserved credits (called when video generation fails)
+router.post('/refund-credits', authMiddleware, async (req, res) => {
+  try {
+    const { projectId } = req.body;
+    
+    if (!projectId) {
+      return res.status(400).json({
+        error: 'Missing projectId'
+      });
+    }
+
+    const User = require('../models/User');
+    let user = await User.findByUid(req.user.uid);
+    
+    if (!user || !user.reservedCredits) {
+      return res.status(404).json({
+        error: 'User or reservedCredits not found'
+      });
+    }
+
+    // Handle both Map and object formats for reservedCredits
+    const reservation = user.reservedCredits.get ? user.reservedCredits.get(projectId) : user.reservedCredits[projectId];
+    
+    if (!reservation) {
+      return res.status(404).json({
+        error: 'No credit reservation found for this project'
+      });
+    }
+    
+    // Refund credits (since credits were never subtracted during reservation, just remove the reservation)
+    // No need to add credits back - they were never taken away
+    
+    // Remove reservation (handle both Map and object formats)
+    if (user.reservedCredits.delete) {
+      user.reservedCredits.delete(projectId);
+    } else {
+      delete user.reservedCredits[projectId];
+    }
+    
+    user.lastActiveAt = new Date();
+    await user.save();
+
+    console.log(`🔄 Released ${reservation.credits} credits reservation for failed project ${projectId} (credits never deducted)`);
+
+    res.json({
+      success: true,
+      creditsReleased: reservation.credits,
+      newBalance: user.availableCredits || user.credits || 0
+    });
+
+  } catch (error) {
+    console.error('Refund credits error:', error);
+    res.status(500).json({
+      error: 'Failed to refund credits'
+    });
+  }
+});
+
+// Legacy consume credits endpoint (for backward compatibility)
 router.post('/consume-credits', authMiddleware, async (req, res) => {
   try {
     const { credits, videoType, durationMinutes, projectId } = req.body;

@@ -538,15 +538,17 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
 
       print("✅ Credits check passed - user has enough credits");
 
-      // CONSUME CREDITS BEFORE VIDEO GENERATION
-      print("💳 Consuming credits before text-based video generation...");
-      final creditsConsumed = await CreditSystemService.consumeCredits(
+      // RESERVE CREDITS BEFORE VIDEO GENERATION
+      final projectId = 'project-${DateTime.now().millisecondsSinceEpoch}';
+      print("💳 NEW CREDIT SYSTEM: Reserving credits for project $projectId...");
+      
+      final creditsReserved = await CreditSystemService.reserveCredits(
         videoType: 'text-to-video',
-        projectId: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+        projectId: projectId,
       );
 
-      if (!creditsConsumed) {
-        print("❌ Failed to consume credits");
+      if (!creditsReserved) {
+        print("❌ Failed to reserve credits");
         setState(() {
           _isGenerating = false;
         });
@@ -554,7 +556,8 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
         return;
       }
 
-      print("✅ Credits consumed successfully");
+      print("✅ Credits reserved successfully for project $projectId");
+      print("💡 Credits will be automatically confirmed if video succeeds, or refunded if it fails");
       print("🎬 === STARTING TEXT-BASED VIDEO GENERATION ===");
       print("📋 Form validation passed");
       print("📹 Title: '${_titleController.text.trim()}'");
@@ -571,6 +574,7 @@ class _TextBasedVideoScreenState extends State<TextBasedVideoScreen> {
         aspectRatio: _selectedAspectRatio,
         resolution: '720', // Fixed for VEO-3
         duration: '8', // Fixed for VEO-3
+        clientProjectId: projectId, // Pass the reserved project ID
       );
 
       print("✅ API call successful!");

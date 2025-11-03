@@ -95,7 +95,118 @@ class CreditSystemService {
     }
   }
 
-  /// Consume credits for video generation
+  /// Reserve credits for video generation (NEW FLOW)
+  static Future<bool> reserveCredits({
+    required String videoType,
+    int? durationMinutes,
+    required String projectId,
+  }) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      int creditsToReserve = 0;
+      if (videoType == 'text-to-video') {
+        creditsToReserve = textToVideoCredits;
+      } else if (videoType == 'avatar-video') {
+        creditsToReserve = avatarVideoCreditsPerMinute * (durationMinutes ?? 1);
+      }
+
+      final token = await user.getIdToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/user/reserve-credits'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'credits': creditsToReserve,
+          'videoType': videoType,
+          'durationMinutes': durationMinutes,
+          'projectId': projectId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('💰 Reserved ${creditsToReserve} credits for project $projectId');
+        return data['success'] ?? false;
+      } else {
+        throw Exception('Failed to reserve credits: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error reserving credits: $e');
+      return false;
+    }
+  }
+
+  /// Confirm credit usage after successful video generation
+  static Future<bool> confirmCredits({
+    required String projectId,
+  }) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final token = await user.getIdToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/user/confirm-credits'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'projectId': projectId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Confirmed credits usage for project $projectId');
+        return data['success'] ?? false;
+      } else {
+        throw Exception('Failed to confirm credits: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error confirming credits: $e');
+      return false;
+    }
+  }
+
+  /// Refund reserved credits if video generation fails
+  static Future<bool> refundCredits({
+    required String projectId,
+  }) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final token = await user.getIdToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/user/refund-credits'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'projectId': projectId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('🔄 Refunded credits for failed project $projectId');
+        return data['success'] ?? false;
+      } else {
+        throw Exception('Failed to refund credits: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error refunding credits: $e');
+      return false;
+    }
+  }
+
+  /// Legacy consume credits method (for backward compatibility)
   static Future<bool> consumeCredits({
     required String videoType,
     int? durationMinutes,

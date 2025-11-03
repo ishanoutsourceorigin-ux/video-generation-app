@@ -31,7 +31,8 @@ router.post('/create', async (req, res) => {
       title, 
       script, 
       prompt = "high quality, clear, cinematic, natural speaking, perfect lip sync",
-      negative_prompt = "blurry, low quality, chaotic, deformed, watermark, bad anatomy, shaky camera, distorted face"
+      negative_prompt = "blurry, low quality, chaotic, deformed, watermark, bad anatomy, shaky camera, distorted face",
+      clientProjectId // For credit reservation tracking
     } = req.body;
     
     console.log(`📋 Generation prompt: "${prompt}"`);
@@ -69,16 +70,16 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // CREDIT CHECK: Calculate required credits and validate user balance
+    // NEW CREDIT SYSTEM: Check if credits are already reserved for this project
     const estimatedMinutes = Math.ceil(script.length / 150); // ~150 chars per minute
     const requiredCredits = estimatedMinutes * 40; // 40 credits per minute for avatar videos
     
-    console.log('💰 Credit calculation:');
+    console.log('💰 NEW CREDIT SYSTEM - Credit calculation:');
     console.log(`📝 Script length: ${script.length} characters`);
     console.log(`⏱️ Estimated duration: ${estimatedMinutes} minutes`);
     console.log(`💳 Required credits: ${requiredCredits}`);
 
-    // Get user model and check credits
+    // Get user model and check if credits are already reserved
     const User = require('../models/User');
     const user = await User.findOne({ uid: userId });
     
@@ -88,18 +89,25 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    if (user.credits < requiredCredits) {
-      console.log(`❌ Insufficient credits: User has ${user.credits}, needs ${requiredCredits}`);
+    console.log(`👤 User found: ${user.name || 'Unknown'}`);
+    console.log(`💰 Available credits: ${user.availableCredits || user.credits || 0}`);
+    console.log(`📋 Reserved credits: ${user.reservedCredits ? Object.keys(user.reservedCredits).length : 0} reservations`);
+
+    // Check if user has enough available credits (should be handled by frontend, but double-check)
+    const availableCredits = user.availableCredits || user.credits || 0;
+    if (availableCredits < requiredCredits) {
+      console.log(`❌ Insufficient available credits: User has ${availableCredits}, needs ${requiredCredits}`);
       return res.status(400).json({
         error: 'Insufficient credits',
         required: requiredCredits,
-        current: user.credits,
+        current: availableCredits,
         estimatedMinutes: estimatedMinutes,
-        creditsPerMinute: 40
+        creditsPerMinute: 40,
+        message: 'Please reserve credits through the frontend first'
       });
     }
 
-    console.log(`✅ Credit check passed: User has ${user.credits} credits, needs ${requiredCredits}`);
+    console.log(`✅ NEW CREDIT SYSTEM - User has enough credits: ${availableCredits} >= ${requiredCredits}`);
 
     console.log('👤 User ID:', userId);
     console.log('🎭 Avatar ID:', avatarId);
@@ -146,9 +154,38 @@ router.post('/create', async (req, res) => {
     await project.save();
     console.log('✅ Project created:', project._id);
 
-    // 3. Credits should already be consumed by frontend CreditSystemService
-    // This is just a backup check to ensure credits are deducted
-    console.log(`💳 Credits should already be consumed by frontend for ${requiredCredits} credits`);
+    // Transfer credit reservation from client ID to actual project ID
+    if (clientProjectId) {
+      console.log('💳 NEW CREDIT SYSTEM: Transferring credit reservation...');
+      try {
+        const User = require('../models/User');
+        const user = await User.findOne({ uid: userId });
+        
+        if (user && user.reservedCredits && user.reservedCredits.has(clientProjectId)) {
+          const reservation = user.reservedCredits.get(clientProjectId);
+          console.log(`🔄 Transferring ${reservation.credits} credits from ${clientProjectId} to ${project._id}`);
+          
+          // Move reservation to actual project ID
+          user.reservedCredits.set(project._id.toString(), reservation);
+          user.reservedCredits.delete(clientProjectId);
+          
+          await user.save();
+          console.log('✅ Credit reservation transferred successfully');
+        } else {
+          console.log('⚠️ No credit reservation found for clientProjectId:', clientProjectId);
+        }
+      } catch (error) {
+        console.error('❌ Error transferring credit reservation:', error);
+        // Don't fail the project creation for this
+      }
+    } else {
+      console.log('💡 No clientProjectId provided - credits should be handled manually');
+    }
+
+    // 3. NEW CREDIT SYSTEM: Credits should be RESERVED by frontend, not consumed yet
+    // They will be automatically confirmed when project completes or refunded if it fails
+    console.log(`� NEW CREDIT SYSTEM: Credits should be RESERVED (not consumed) by frontend for ${requiredCredits} credits`);
+    console.log(`🔄 Project ${project._id} will auto-confirm credits on success or auto-refund on failure`);
     console.log(`📊 Avatar video generation: ${estimatedMinutes} minutes estimated`);
 
     // 4. Start async video generation
@@ -187,14 +224,19 @@ router.post('/create', async (req, res) => {
 
 // Async function to process avatar video generation with A2E
 async function processAvatarVideoGeneration(projectId, avatar, script, prompt, negative_prompt) {
+  let project;
   try {
-    console.log('🎬 Starting A2E avatar video processing for project:', projectId);
+    console.log('🎬 NEW CREDIT SYSTEM: Starting A2E avatar video processing for project:', projectId);
 
-    // Update project status
-    await Project.findByIdAndUpdate(projectId, { 
-      status: 'processing',
-      processingStartedAt: new Date()
-    });
+    // Get project and update status using new method (handles credit management)
+    project = await Project.findById(projectId);
+    if (!project) {
+      console.error('❌ Project not found:', projectId);
+      return;
+    }
+
+    console.log('🔄 NEW CREDIT SYSTEM: Updating project status to processing...');
+    await project.updateStatus('processing');
 
     // Step 1: Generate speech using ElevenLabs
     console.log('🎙️ Step 1: Generating speech with ElevenLabs...');
@@ -264,14 +306,29 @@ async function processAvatarVideoGeneration(projectId, avatar, script, prompt, n
     console.log('📝 Note: Video will be completed when A2E webhook is received');
 
   } catch (error) {
-    console.error('❌ A2E avatar video processing failed:', error);
+    console.error('❌ NEW CREDIT SYSTEM: A2E avatar video processing failed:', error);
     
-    // Update project with error
-    await Project.findByIdAndUpdate(projectId, {
-      status: 'failed',
-      errorMessage: error.message,
-      processingCompletedAt: new Date()
-    });
+    // Update project with error using new method (auto-refunds credits)
+    try {
+      if (project) {
+        console.log('🔄 NEW CREDIT SYSTEM: Updating project to failed status (will auto-refund credits)...');
+        await project.updateStatus('failed', {
+          errorMessage: error.message
+        });
+        console.log('✅ NEW CREDIT SYSTEM: Credits should now be auto-refunded for project:', projectId);
+      } else {
+        // Fallback if project object not available
+        const failedProject = await Project.findById(projectId);
+        if (failedProject) {
+          await failedProject.updateStatus('failed', {
+            errorMessage: error.message
+          });
+          console.log('✅ NEW CREDIT SYSTEM: Credits auto-refunded via fallback for project:', projectId);
+        }
+      }
+    } catch (updateError) {
+      console.error('❌ Failed to update project status and refund credits:', updateError);
+    }
   }
 }
 
@@ -308,35 +365,39 @@ async function completeA2EVideoProcessing(projectId, videoUrl, thumbnailUrl, met
       finalThumbnailUrl = thumbnailResult.secure_url;
     }
 
-    // Update project with final video
-    await Project.findByIdAndUpdate(projectId, {
-      status: 'completed',
-      videoUrl: cloudinaryResult.secure_url,
-      thumbnailUrl: finalThumbnailUrl,
-      processingCompletedAt: new Date(),
-      fileSize: cloudinaryResult.bytes,
-      dimensions: {
-        width: cloudinaryResult.width,
-        height: cloudinaryResult.height
-      },
-      metadata: {
-        a2e: metadata,
-        provider: 'a2e'
-      }
-    });
-
-    console.log('🎉 A2E avatar video project completed:', projectId);
+    // Update project with final video using new method (auto-confirms credits)
+    const project = await Project.findById(projectId);
+    if (project) {
+      console.log('✅ NEW CREDIT SYSTEM: Updating project to completed status (will auto-confirm credits)...');
+      await project.updateStatus('completed', {
+        videoUrl: cloudinaryResult.secure_url,
+        thumbnailUrl: finalThumbnailUrl,
+        fileSize: cloudinaryResult.bytes,
+        dimensions: {
+          width: cloudinaryResult.width,
+          height: cloudinaryResult.height
+        },
+        metadata: {
+          a2e: metadata,
+          provider: 'a2e'
+        }
+      });
+      console.log('🎉 A2E avatar video project completed:', projectId);
+    } else {
+      console.error('❌ Project not found for completion:', projectId);
+    }
+    
     return { success: true };
 
   } catch (error) {
     console.error('❌ A2E video completion error:', error);
     
-    // Update project with error
-    await Project.findByIdAndUpdate(projectId, {
-      status: 'failed',
-      errorMessage: error.message,
-      processingCompletedAt: new Date()
-    });
+    // Update project with error using new method (auto-refunds credits)
+    const project = await Project.findById(projectId);
+    if (project) {
+      console.log('🔄 NEW CREDIT SYSTEM: Setting project to failed status (will auto-refund credits)...');
+      await project.updateStatus('failed', { errorMessage: error.message });
+    }
     
     return { success: false, error: error.message };
   }

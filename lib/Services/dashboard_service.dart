@@ -178,7 +178,7 @@ class DashboardService {
         'totalAvatars': 0,
         'totalProjects': 0,
         'completedProjects': 0,
-        'availableCredits': 5,
+        'availableCredits': 0,
         'totalTimeSaved': '0h',
         'creditsPurchased': 0,
         'creditsUsed': 0,

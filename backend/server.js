@@ -92,9 +92,16 @@ class A2EAutoCompletion {
             continue;
           }
           
-          // Check if video has been processing for too long (over 2 hours)
+          // Check processing time
           const processingTime = Date.now() - new Date(project.createdAt).getTime();
           const twoHours = 2 * 60 * 60 * 1000;
+          const twoMinutes = 2 * 60 * 1000;
+          
+          // Don't check A2E status until at least 2 minutes have passed (A2E needs time to process)
+          if (processingTime < twoMinutes) {
+            console.log(`⏳ A2E video too recent (${Math.round(processingTime / 1000)}s old). Waiting for minimum processing time...`);
+            continue;
+          }
           
           if (processingTime > twoHours) {
             console.log(`⚠️ Video has been processing for ${Math.round(processingTime / (60 * 1000))} minutes`);
@@ -107,33 +114,60 @@ class A2EAutoCompletion {
             console.log(`✅ Video completed: ${project._id}`);
             console.log(`🎥 Video URL: ${result.videoUrl}`);
             
-            // Update project in database to prevent re-processing
-            await Project.findByIdAndUpdate(project._id, {
-              status: 'completed',
+            // Update project using new method (auto-confirms credits)
+            console.log('💳 NEW CREDIT SYSTEM: Updating project to completed status (will auto-confirm credits)...');
+            await project.updateStatus('completed', {
               videoUrl: result.videoUrl,
               thumbnailUrl: result.thumbnailUrl,
-              processingCompletedAt: new Date(),
               actualDuration: result.actualDuration,
               errorMessage: null
             });
-            console.log(`💾 Project ${project._id} updated in database`);
+            console.log(`💾 Project ${project._id} updated with auto credit confirmation`);
             
-          } else if (result.message?.includes('still processing') || result.message?.includes('Status: sent')) {
+          } else if (result.message?.includes('still processing') || result.message?.includes('Status: sent') || result.message?.includes('Status: initialized')) {
             // Only log per project every 5 minutes to reduce noise
             const now = Date.now();
             const projectId = project._id.toString();
             const lastLog = this.projectLastLogTime.get(projectId) || 0;
             
             if ((now - lastLog) > 300000) { // Log every 5 minutes per project
-              console.log(`⏳ Video still processing: ${project._id} (Status: ${result.status || 'sent'})`);
+              const processingMinutes = Math.round((now - new Date(project.createdAt).getTime()) / (60 * 1000));
+              console.log(`⏳ A2E video still processing: ${project._id} (${processingMinutes} min, Status: ${result.status || 'sent'})`);
               console.log(`📅 Created: ${project.createdAt}`);
               this.projectLastLogTime.set(projectId, now);
             }
           } else {
-            console.log(`❌ Error completing video: ${result.message}`);
+            // Check if it's been processing for too long (over 30 minutes for A2E is unusual)
+            const thirtyMinutes = 30 * 60 * 1000;
+            
+            if (processingTime > thirtyMinutes) {
+              console.log(`⚠️ A2E video processing timeout after ${Math.round(processingTime / (60 * 1000))} minutes`);
+              console.log('🔄 NEW CREDIT SYSTEM: Setting project to failed status due to timeout (will auto-refund credits)...');
+              await project.updateStatus('failed', { 
+                errorMessage: 'A2E video generation timeout - exceeded 30 minutes' 
+              });
+            } else {
+              console.log(`❌ Error completing video: ${result.message}`);
+              
+              // Update project to failed status (auto-refunds credits)
+              console.log('🔄 NEW CREDIT SYSTEM: Setting project to failed status (will auto-refund credits)...');
+              await project.updateStatus('failed', { 
+                errorMessage: result.message || 'Video generation failed' 
+              });
+            }
           }
         } catch (error) {
           console.error(`❌ Error processing project ${project._id}:`, error.message);
+          
+          // Mark project as failed if there's an API error (auto-refunds credits)
+          try {
+            console.log('🔄 NEW CREDIT SYSTEM: API error occurred, setting project to failed status (will auto-refund credits)...');
+            await project.updateStatus('failed', { 
+              errorMessage: error.message || 'API error during video processing check' 
+            });
+          } catch (updateError) {
+            console.error(`❌ Failed to update project status to failed: ${updateError.message}`);
+          }
         }
       }
     } catch (error) {
