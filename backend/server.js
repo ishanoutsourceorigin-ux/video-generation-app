@@ -21,6 +21,10 @@ const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
 const authMiddleware = require('./middleware/auth');
 
+// Import services
+const emailService = require('./services/emailService');
+const clientUserService = require('./services/clientUserService');
+
 // Import A2E completion service
 const Project = require('./models/Project');
 const A2ECompletionService = require('./services/a2eCompletionService');
@@ -283,8 +287,23 @@ mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => {
+.then(async () => {
   console.log('Connected to MongoDB Atlas');
+  
+  // Initialize services
+  try {
+    console.log('🔧 Initializing services...');
+    
+    // Initialize email service
+    await emailService.init();
+    
+    // Initialize client user service
+    clientUserService.init();
+    
+    console.log('✅ All services initialized successfully');
+  } catch (serviceError) {
+    console.error('⚠️ Service initialization warning:', serviceError.message);
+  }
   
   // Start A2E auto-completion service after database connection
   setTimeout(() => {

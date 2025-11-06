@@ -202,12 +202,44 @@ const userSchema = new mongoose.Schema({
     default: Date.now,
   },
   
+  // Client User System (for automatic account creation from client website payments)
+  clientAccount: {
+    isClientUser: {
+      type: Boolean,
+      default: false,
+    },
+    clientSource: {
+      type: String, // 'client-website-1', 'partner-site', etc.
+      default: null,
+    },
+    paymentSource: {
+      type: String, // 'stripe-webhook', 'client-stripe', etc.
+      default: null,
+    },
+    automaticallyCreated: {
+      type: Boolean,
+      default: false,
+    },
+    generatedPassword: {
+      type: String, // Store temporarily for email, then clear after sending
+      default: null,
+    },
+    clientPaymentId: String, // Original payment ID from client's Stripe
+    clientCustomerId: String, // Client's Stripe customer ID
+    welcomeEmailSent: {
+      type: Boolean,
+      default: false,
+    },
+    welcomeEmailDate: Date,
+  },
+
   // Metadata
   metadata: {
-    signupSource: String, // 'web', 'mobile', 'referral', etc.
+    signupSource: String, // 'web', 'mobile', 'referral', 'client-website', etc.
     ipAddress: String,
     userAgent: String,
     deviceInfo: String,
+    clientWebhookData: Object, // Store original webhook payload for debugging
   }
 });
 
@@ -219,6 +251,9 @@ userSchema.index({ createdAt: -1 });
 userSchema.index({ lastActiveAt: -1 });
 userSchema.index({ 'subscription.status': 1 });
 userSchema.index({ 'referral.referralCode': 1 });
+userSchema.index({ 'clientAccount.isClientUser': 1 });
+userSchema.index({ 'clientAccount.clientSource': 1 });
+userSchema.index({ 'clientAccount.clientPaymentId': 1 });
 
 // Update timestamp on save
 userSchema.pre('save', function(next) {

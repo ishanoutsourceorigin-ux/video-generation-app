@@ -73,7 +73,7 @@ router.get('/payment-intent/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Stripe webhook endpoint
+// Stripe webhook endpoint (for app payments)
 router.post('/webhook', express.raw({type: 'application/json'}), async (req, res) => {
   const sig = req.headers['stripe-signature'];
 
@@ -107,6 +107,171 @@ router.post('/webhook', express.raw({type: 'application/json'}), async (req, res
   }
 
   res.json({received: true});
+});
+
+// Client website webhook endpoint for automatic user creation
+router.post('/webhook/client-payment', express.raw({type: 'application/json'}), async (req, res) => {
+  try {
+    console.log('🎯 === CLIENT PAYMENT WEBHOOK RECEIVED ===');
+    console.log('📍 Route: POST /api/payments/webhook/client-payment');
+    console.log('⏰ Timestamp:', new Date().toISOString());
+
+    const sig = req.headers['stripe-signature'];
+    const clientSource = req.headers['x-client-source'] || req.query.client || 'unknown-client';
+
+    console.log('🔍 Webhook Headers:', {
+      signature: sig ? 'present' : 'missing',
+      clientSource,
+      contentType: req.headers['content-type'],
+      contentLength: req.headers['content-length']
+    });
+
+    let event;
+
+    // Verify webhook signature (clients must provide their webhook secret)
+    const clientWebhookSecret = process.env.CLIENT_STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
+    
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, clientWebhookSecret);
+      console.log('✅ Webhook signature verified successfully');
+    } catch (err) {
+      console.error('❌ Client webhook signature verification failed:', err.message);
+      return res.status(400).json({ 
+        error: 'Webhook signature verification failed',
+        message: err.message 
+      });
+    }
+
+    console.log('📋 Webhook Event:', {
+      type: event.type,
+      id: event.id,
+      created: event.created,
+      livemode: event.livemode
+    });
+
+    // Handle payment events
+    if (event.type === 'payment_intent.succeeded') {
+      const paymentIntent = event.data.object;
+      
+      console.log('💰 Payment Intent Succeeded:', {
+        id: paymentIntent.id,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        status: paymentIntent.status,
+        customerEmail: paymentIntent.receipt_email,
+        metadata: paymentIntent.metadata
+      });
+
+      // Initialize client user service
+      const clientUserService = require('../services/clientUserService');
+      clientUserService.init();
+
+      // Extract customer information
+      const customerEmail = paymentIntent.receipt_email || 
+                          paymentIntent.metadata?.customer_email ||
+                          paymentIntent.metadata?.email;
+      
+      const customerName = paymentIntent.metadata?.customer_name ||
+                          paymentIntent.metadata?.name ||
+                          paymentIntent.shipping?.name ||
+                          customerEmail?.split('@')[0];
+
+      if (!customerEmail) {
+        console.error('❌ No customer email found in payment intent');
+        return res.status(400).json({ 
+          error: 'Customer email required for account creation',
+          paymentId: paymentIntent.id
+        });
+      }
+
+      // Prepare payment data for user creation
+      const paymentData = {
+        email: customerEmail,
+        amount: paymentIntent.amount, // Amount in cents
+        currency: paymentIntent.currency,
+        paymentIntentId: paymentIntent.id,
+        customerEmail: customerEmail,
+        customerName: customerName,
+        clientSource: clientSource,
+        metadata: {
+          ...paymentIntent.metadata,
+          customerId: paymentIntent.customer,
+          webhookId: event.id,
+          processedAt: new Date().toISOString()
+        }
+      };
+
+      console.log('🔄 Processing client user creation:', {
+        email: customerEmail,
+        name: customerName,
+        amount: paymentIntent.amount / 100,
+        clientSource: clientSource
+      });
+
+      // Create or update user account
+      try {
+        const result = await clientUserService.createClientUserFromPayment(paymentData);
+        
+        console.log('✅ Client user processing completed:', {
+          success: result.success,
+          newUser: result.newUser,
+          creditsAdded: result.creditsAdded,
+          emailSent: result.emailSent,
+          userId: result.user.uid
+        });
+
+        res.json({
+          received: true,
+          processed: true,
+          userCreated: result.newUser,
+          creditsAdded: result.creditsAdded,
+          paymentId: paymentIntent.id,
+          userId: result.user.uid
+        });
+
+      } catch (userCreationError) {
+        console.error('❌ Client user creation failed:', userCreationError);
+        
+        // Still acknowledge webhook to prevent retries
+        res.json({
+          received: true,
+          processed: false,
+          error: userCreationError.message,
+          paymentId: paymentIntent.id
+        });
+      }
+
+    } else if (event.type === 'payment_intent.payment_failed') {
+      const failedPayment = event.data.object;
+      console.log('❌ Client payment failed:', {
+        id: failedPayment.id,
+        amount: failedPayment.amount,
+        last_payment_error: failedPayment.last_payment_error
+      });
+
+      res.json({
+        received: true,
+        processed: false,
+        reason: 'payment_failed'
+      });
+
+    } else {
+      console.log(`ℹ️ Unhandled client webhook event type: ${event.type}`);
+      res.json({
+        received: true,
+        processed: false,
+        reason: 'unhandled_event_type'
+      });
+    }
+
+  } catch (error) {
+    console.error('💥 Client webhook processing error:', error);
+    res.status(500).json({
+      received: true,
+      processed: false,
+      error: error.message
+    });
+  }
 });
 
 // Add Google Play verification utility
@@ -645,6 +810,82 @@ router.get('/customer/:customerId/payment-methods', authMiddleware, async (req, 
     console.error('Get payment methods error:', error);
     res.status(500).json({
       error: error.message || 'Failed to retrieve payment methods'
+    });
+  }
+});
+
+// Admin route: Get client user statistics (requires admin authentication)
+router.get('/admin/client-users', authMiddleware, async (req, res) => {
+  try {
+    // This should have proper admin auth, but for now using user auth
+    const clientUserService = require('../services/clientUserService');
+    
+    const stats = await clientUserService.getClientUserStats();
+    
+    // Get recent client users
+    const User = require('../models/User');
+    const recentClientUsers = await User.find({
+      'clientAccount.isClientUser': true
+    })
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .select('email name clientAccount availableCredits createdAt totalPurchased')
+    .lean();
+
+    res.json({
+      success: true,
+      stats: stats,
+      recentUsers: recentClientUsers,
+      totalClientUsers: recentClientUsers.length
+    });
+
+  } catch (error) {
+    console.error('Get client user stats error:', error);
+    res.status(500).json({
+      error: 'Failed to get client user statistics'
+    });
+  }
+});
+
+// Test endpoint for client webhook (development only)
+router.post('/test-client-webhook', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: 'Test endpoint not available in production' });
+  }
+
+  try {
+    console.log('🧪 Testing client webhook with sample data...');
+    
+    const clientUserService = require('../services/clientUserService');
+    clientUserService.init();
+
+    const testPaymentData = {
+      email: 'test-client@example.com',
+      amount: 2999, // $29.99 in cents
+      currency: 'usd',
+      paymentIntentId: `test-pi-${Date.now()}`,
+      customerEmail: 'test-client@example.com',
+      customerName: 'Test Client User',
+      clientSource: 'test-client-website',
+      metadata: {
+        testMode: true,
+        webhookTest: true
+      }
+    };
+
+    const result = await clientUserService.createClientUserFromPayment(testPaymentData);
+
+    res.json({
+      success: true,
+      testResult: result,
+      message: 'Test client webhook processed successfully'
+    });
+
+  } catch (error) {
+    console.error('Test client webhook error:', error);
+    res.status(500).json({
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
