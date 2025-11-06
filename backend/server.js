@@ -7,6 +7,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
+const bodyParser = require('body-parser');
 
 // Load environment variables
 dotenv.config();
@@ -271,7 +272,15 @@ app.use(cors(corsOptions));
 // Middleware
 app.use(compression());
 app.use(cookieParser());
-app.use(express.json({ limit: '50mb' }));
+
+// Use bodyParser.json with verify to capture raw body for webhook signature verification
+app.use(bodyParser.json({
+  verify: function (req, res, buf) {
+    // Save raw buffer on request for webhook handlers to use
+    req.rawBody = buf;
+  },
+  limit: '50mb'
+}));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Configure multer for file uploads

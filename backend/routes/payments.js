@@ -74,13 +74,13 @@ router.get('/payment-intent/:id', authMiddleware, async (req, res) => {
 });
 
 // Stripe webhook endpoint (for app payments)
-router.post('/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
 
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -110,7 +110,7 @@ router.post('/webhook', express.raw({type: 'application/json'}), async (req, res
 });
 
 // Client website webhook endpoint for automatic user creation
-router.post('/webhook/client-payment', express.raw({type: 'application/json'}), async (req, res) => {
+router.post('/webhook/client-payment', async (req, res) => {
   try {
     console.log('🎯 === CLIENT PAYMENT WEBHOOK RECEIVED ===');
     console.log('📍 Route: POST /api/payments/webhook/client-payment');
@@ -132,7 +132,7 @@ router.post('/webhook/client-payment', express.raw({type: 'application/json'}), 
     const clientWebhookSecret = process.env.CLIENT_STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
     
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig, clientWebhookSecret);
+      event = stripe.webhooks.constructEvent(req.rawBody, sig, clientWebhookSecret);
       console.log('✅ Webhook signature verified successfully');
     } catch (err) {
       console.error('❌ Client webhook signature verification failed:', err.message);

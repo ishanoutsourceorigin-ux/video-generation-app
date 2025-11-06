@@ -10,7 +10,7 @@ const transactionSchema = new mongoose.Schema({
   // Transaction Details
   type: {
     type: String,
-    enum: ['purchase', 'refund', 'credit_bonus', 'referral_bonus'],
+    enum: ['purchase', 'refund', 'credit_bonus', 'referral_bonus', 'client_payment'],
     required: true,
   },
   status: {
@@ -48,12 +48,12 @@ const transactionSchema = new mongoose.Schema({
   // Payment Gateway Details
   paymentGateway: {
     type: String,
-    enum: ['stripe', 'paypal', 'razorpay', 'manual', 'google_play', 'app_store'],
+    enum: ['stripe', 'paypal', 'razorpay', 'manual', 'google_play', 'app_store', 'client_stripe'],
     default: 'stripe',
   },
   paymentMethod: {
     type: String,
-    enum: ['stripe', 'paypal', 'razorpay', 'google_play', 'app_store', 'manual'],
+    enum: ['stripe', 'paypal', 'razorpay', 'google_play', 'app_store', 'manual', 'stripe_webhook'],
     default: 'stripe',
   },
   
