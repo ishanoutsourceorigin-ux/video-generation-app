@@ -1033,4 +1033,103 @@ router.get('/health/did', adminAuth, async (req, res) => {
   }
 });
 
+// ===== EMAIL SERVICE MONITORING ROUTES =====
+
+// Get email service health and statistics
+router.get('/email/health', adminAuth, async (req, res) => {
+  try {
+    const emailService = require('../services/emailService');
+    const health = await emailService.healthCheck();
+    
+    res.json({
+      success: true,
+      emailService: health
+    });
+  } catch (error) {
+    console.error('Email health check error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get email service statistics
+router.get('/email/stats', adminAuth, async (req, res) => {
+  try {
+    const emailService = require('../services/emailService');
+    const stats = emailService.getStats();
+    
+    res.json({
+      success: true,
+      stats: stats
+    });
+  } catch (error) {
+    console.error('Email stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Send test email
+router.post('/email/test', adminAuth, async (req, res) => {
+  try {
+    const { testEmail } = req.body;
+    const emailService = require('../services/emailService');
+    
+    const result = await emailService.sendTestEmail(testEmail);
+    
+    res.json({
+      success: true,
+      testResult: result
+    });
+  } catch (error) {
+    console.error('Test email error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Clear email queue
+router.post('/email/clear-queue', adminAuth, async (req, res) => {
+  try {
+    const emailService = require('../services/emailService');
+    const result = emailService.clearQueue();
+    
+    res.json({
+      success: true,
+      result: result
+    });
+  } catch (error) {
+    console.error('Clear queue error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Force process email queue
+router.post('/email/process-queue', adminAuth, async (req, res) => {
+  try {
+    const emailService = require('../services/emailService');
+    const result = await emailService.forceProcessQueue();
+    
+    res.json({
+      success: true,
+      result: result
+    });
+  } catch (error) {
+    console.error('Process queue error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

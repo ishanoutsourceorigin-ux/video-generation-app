@@ -3,98 +3,463 @@ const nodemailer = require('nodemailer');
 class EmailService {
   constructor() {
     this.transporter = null;
+    this.fallbackTransporter = null;
     this.initialized = false;
+    this.emailQueue = [];
+    this.retryAttempts = 3;
+    this.rateLimitWindow = 60000; // 1 minute
+    this.emailsSentThisWindow = 0;
+    this.windowStart = Date.now();
+    this.maxEmailsPerWindow = 100; // Production rate limit
+    
+    // Environment detection
+    this.isProduction = process.env.NODE_ENV === 'production';
+    this.isDevelopment = process.env.NODE_ENV === 'development';
+    
+    // Email statistics
+    this.stats = {
+      sent: 0,
+      failed: 0,
+      queued: 0,
+      lastSent: null,
+      lastError: null
+    };
   }
 
   // Initialize the email service with configuration
   async init() {
     try {
-      // Create transporter with environment variables
-      this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        },
-        tls: {
-          rejectUnauthorized: false
-        },
-        connectionTimeout: 30000, // 30 seconds
-        greetingTimeout: 15000, // 15 seconds
-        socketTimeout: 30000, // 30 seconds
-        pool: true, // Use connection pooling
-        maxConnections: 5,
-        maxMessages: 100
-      });
-
-      // Verify connection with timeout
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        try {
-          // Set verification timeout
-          const verificationPromise = this.transporter.verify();
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Verification timeout')), 5000)
-          );
-          
-          await Promise.race([verificationPromise, timeoutPromise]);
-          console.log('✅ Email service initialized successfully');
-          this.initialized = true;
-        } catch (verifyError) {
-          console.log('⚠️ Email verification failed, but service will still try to send:', verifyError.message);
-          this.initialized = true; // Still try to send emails
-        }
-      } else {
-        console.log('⚠️ Email service not configured - SMTP credentials missing');
+      // Validate environment variables
+      if (!this.validateConfiguration()) {
         this.initialized = false;
+        return;
       }
 
+      // Initialize primary transporter
+      await this.initializePrimaryTransporter();
+      
+      // Initialize fallback transporter
+      await this.initializeFallbackTransporter();
+      
+      // Start background email processor
+      this.startEmailProcessor();
+      
+      console.log('✅ Production email service initialized successfully');
+      console.log(`📊 Environment: ${this.isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+      console.log(`📈 Rate limit: ${this.maxEmailsPerWindow} emails per minute`);
+      
     } catch (error) {
       console.error('❌ Email service initialization failed:', error.message);
       this.initialized = false;
     }
   }
 
-  // Method to reinitialize transporter (for retry scenarios)
-  initializeTransporter() {
-    // Try Gmail service first, then fallback to SMTP
+  // Validate configuration for production
+  validateConfiguration() {
+    const required = ['SMTP_USER', 'SMTP_PASS'];
+    const missing = required.filter(key => !process.env[key]);
+    
+    if (missing.length > 0) {
+      console.error('❌ Missing email configuration:', missing.join(', '));
+      return false;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(process.env.SMTP_USER)) {
+      console.error('❌ Invalid SMTP_USER email format');
+      return false;
+    }
+    
+    return true;
+  }
+
+  // Initialize primary transporter with production settings
+  async initializePrimaryTransporter() {
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      },
+      tls: {
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      },
+      connectionTimeout: this.isProduction ? 30000 : 20000,
+      greetingTimeout: this.isProduction ? 15000 : 10000,
+      socketTimeout: this.isProduction ? 30000 : 20000,
+      pool: true,
+      maxConnections: this.isProduction ? 5 : 2,
+      maxMessages: this.isProduction ? 100 : 10,
+      logger: this.isDevelopment,
+      debug: this.isDevelopment
+    });
+
+    // Verify primary transporter
+    await this.verifyTransporter(this.transporter, 'Primary');
+  }
+
+  // Initialize fallback transporter
+  async initializeFallbackTransporter() {
+    this.fallbackTransporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      },
+      tls: {
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 8000,
+      socketTimeout: 15000,
+      pool: false,
+      logger: false,
+      debug: false
+    });
+
+    // Verify fallback transporter
+    await this.verifyTransporter(this.fallbackTransporter, 'Fallback');
+  }
+
+  // Verify transporter with timeout
+  async verifyTransporter(transporter, name) {
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        // Set verification timeout
+        const verificationPromise = transporter.verify();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Verification timeout')), 5000)
+        );
+        
+        await Promise.race([verificationPromise, timeoutPromise]);
+        console.log(`✅ ${name} email transporter verified successfully`);
+        
+        if (name === 'Primary') {
+          this.initialized = true;
+        }
+      } catch (verifyError) {
+        console.log(`⚠️ ${name} email verification failed:`, verifyError.message);
+        if (name === 'Primary') {
+          this.initialized = true; // Still try to send emails
+        }
+      }
+    } else {
+      console.log('⚠️ Email service not configured - SMTP credentials missing');
+      this.initialized = false;
+    }
+  }
+
+  // Start background email processor for production
+  startEmailProcessor() {
+    // Process queued emails every 30 seconds
+    setInterval(() => {
+      this.processEmailQueue();
+    }, 30000);
+
+    // Reset rate limit window every minute
+    setInterval(() => {
+      this.resetRateLimit();
+    }, this.rateLimitWindow);
+  }
+
+  // Reset rate limiting counters
+  resetRateLimit() {
+    this.emailsSentThisWindow = 0;
+    this.windowStart = Date.now();
+  }
+
+  // Check if rate limit is exceeded
+  isRateLimited() {
+    return this.emailsSentThisWindow >= this.maxEmailsPerWindow;
+  }
+
+  // Process queued emails
+  async processEmailQueue() {
+    if (this.emailQueue.length === 0 || this.isRateLimited()) {
+      return;
+    }
+
+    const emailsToProcess = this.emailQueue.splice(0, Math.min(10, this.maxEmailsPerWindow - this.emailsSentThisWindow));
+    
+    for (const emailTask of emailsToProcess) {
+      try {
+        await this.processQueuedEmail(emailTask);
+      } catch (error) {
+        console.error('Failed to process queued email:', error.message);
+      }
+    }
+  }
+
+  // Process individual queued email
+  async processQueuedEmail(emailTask) {
+    const { type, mailOptions, retryCount = 0 } = emailTask;
+    
     try {
-      this.transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        },
-        tls: {
-          rejectUnauthorized: false
-        },
-        connectionTimeout: 60000, // 60 seconds - more time for Gmail
-        greetingTimeout: 30000, // 30 seconds
-        socketTimeout: 60000, // 60 seconds
-        pool: true,
-        maxConnections: 3, // Fewer connections for Gmail
-        maxMessages: 50,
-        logger: false, // Disable detailed logging
-        debug: false
+      const result = await this.transporter.sendMail(mailOptions);
+      this.stats.sent++;
+      this.stats.lastSent = new Date();
+      this.emailsSentThisWindow++;
+      
+      console.log(`✅ Queued ${type} email sent:`, {
+        to: mailOptions.to,
+        messageId: result.messageId
       });
+      
     } catch (error) {
-      console.warn('⚠️ Gmail service failed, trying SMTP fallback:', error.message);
-      this.transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        },
-        tls: {
-          rejectUnauthorized: false
-        },
-        connectionTimeout: 60000,
-        greetingTimeout: 30000,
-        socketTimeout: 60000
+      console.error(`❌ Failed to send queued ${type} email:`, error.message);
+      
+      if (retryCount < this.retryAttempts) {
+        // Retry with exponential backoff
+        emailTask.retryCount = retryCount + 1;
+        emailTask.nextRetry = Date.now() + (Math.pow(2, retryCount) * 60000); // Exponential backoff
+        this.emailQueue.push(emailTask);
+      } else {
+        this.stats.failed++;
+        this.stats.lastError = { error: error.message, timestamp: new Date() };
+      }
+    }
+  }
+
+  // Production email validation
+  validateEmailRequest(userEmail, emailType) {
+    // Check if service is initialized
+    if (!this.initialized) {
+      console.log('⚠️ Email service not initialized - skipping email');
+      return { valid: false, success: false, reason: 'email_service_not_configured' };
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userEmail)) {
+      console.log('❌ Invalid email format:', userEmail);
+      return { valid: false, success: false, reason: 'invalid_email_format' };
+    }
+
+    // Skip sending to test/example domains in production
+    const testDomains = ['example.com', 'test.com', 'localhost', '10minutemail.com', 'guerrillamail.com'];
+    const emailDomain = userEmail.split('@')[1]?.toLowerCase();
+    
+    if (this.isProduction && testDomains.includes(emailDomain)) {
+      console.log(`⚠️ Skipping email to test domain in production: ${emailDomain}`);
+      return { 
+        valid: false,
+        success: true, 
+        reason: 'test_domain_skipped_production',
+        message: `Email not sent to test domain in production: ${emailDomain}`
+      };
+    }
+
+    // Development mode - allow test domains but warn
+    if (!this.isProduction && testDomains.includes(emailDomain)) {
+      console.log(`⚠️ Sending to test domain in development: ${emailDomain}`);
+    }
+
+    return { valid: true };
+  }
+
+  // Send email with comprehensive retry logic
+  async sendEmailWithRetry(mailOptions, emailType, retryCount = 0) {
+    try {
+      return await this.transporter.sendMail(mailOptions);
+    } catch (error) {
+      console.error(`❌ Failed to send ${emailType} email (attempt ${retryCount + 1}):`, {
+        error: error.message,
+        code: error.code,
+        to: mailOptions.to
       });
+
+      // For timeout errors, try fallback strategies
+      if ((error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') && retryCount < this.retryAttempts) {
+        console.log(`🔄 Attempting ${emailType} email retry ${retryCount + 1}/${this.retryAttempts}...`);
+        
+        try {
+          // Wait with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          
+          // Try fallback transporter first
+          if (this.fallbackTransporter && retryCount === 0) {
+            console.log('🔄 Using fallback transporter...');
+            return await this.fallbackTransporter.sendMail(mailOptions);
+          }
+          
+          // Reinitialize primary transporter
+          if (this.transporter && this.transporter.close) {
+            await this.transporter.close();
+          }
+          await this.initializePrimaryTransporter();
+          
+          // Recursive retry
+          return await this.sendEmailWithRetry(mailOptions, emailType, retryCount + 1);
+          
+        } catch (retryError) {
+          console.error(`❌ Retry ${retryCount + 1} also failed:`, retryError.message);
+          
+          if (retryCount >= this.retryAttempts - 1) {
+            // Final fallback: queue for manual processing
+            this.stats.failed++;
+            this.stats.lastError = { error: retryError.message, timestamp: new Date() };
+            
+            await this.queueEmailForManualSending({
+              type: emailType,
+              to: mailOptions.to,
+              data: { mailOptions },
+              timestamp: new Date().toISOString()
+            });
+            
+            throw new Error(`All retry attempts failed: ${retryError.message}`);
+          }
+        }
+      } else {
+        // Non-timeout error or max retries reached
+        this.stats.failed++;
+        this.stats.lastError = { error: error.message, timestamp: new Date() };
+        throw error;
+      }
+    }
+  }
+
+  // Queue email for later processing
+  queueEmail(type, userEmail, data, options = {}) {
+    const { name, password, credits, clientSource = 'Unknown' } = data || {};
+    
+    let mailOptions;
+    let subject;
+    
+    if (type === 'welcome') {
+      const welcomeTemplate = this.getWelcomeTemplate(name, userEmail, password, credits, clientSource);
+      mailOptions = {
+        from: {
+          name: process.env.EMAIL_FROM_NAME || 'CloneX App',
+          address: process.env.SMTP_USER
+        },
+        to: userEmail,
+        subject: 'Welcome to CloneX - Your Account is Ready!',
+        html: welcomeTemplate,
+        text: this.getWelcomeTextVersion(name, userEmail, password, credits)
+      };
+      subject = 'Welcome Email';
+    } else if (type === 'existing_user_credit') {
+      const { credits, amount, clientSource = 'Unknown' } = data;
+      const existingUserTemplate = this.getExistingUserTemplate(userEmail, credits, amount, clientSource);
+      mailOptions = {
+        from: {
+          name: process.env.EMAIL_FROM_NAME || 'CloneX App',
+          address: process.env.SMTP_USER
+        },
+        to: userEmail,
+        subject: 'Credits Added to Your CloneX Account!',
+        html: existingUserTemplate,
+        text: this.getExistingUserTextVersion(userEmail, credits, amount)
+      };
+      subject = 'Credit Notification';
+    }
+
+    const emailTask = {
+      type,
+      mailOptions,
+      queuedAt: new Date(),
+      priority: options.priority || 'normal'
+    };
+
+    this.emailQueue.push(emailTask);
+    this.stats.queued++;
+
+    console.log(`📬 Email queued due to rate limiting: ${subject} for ${userEmail}`);
+    
+    return {
+      success: true,
+      queued: true,
+      reason: 'rate_limited',
+      message: `${subject} queued for delivery`,
+      queuePosition: this.emailQueue.length
+    };
+  }
+
+  // Get email service statistics
+  getStats() {
+    return {
+      ...this.stats,
+      queueLength: this.emailQueue.length,
+      rateLimitStatus: {
+        emailsSentThisWindow: this.emailsSentThisWindow,
+        maxPerWindow: this.maxEmailsPerWindow,
+        windowStart: new Date(this.windowStart),
+        isLimited: this.isRateLimited()
+      },
+      transporter: {
+        primary: this.transporter ? 'initialized' : 'not_initialized',
+        fallback: this.fallbackTransporter ? 'initialized' : 'not_initialized'
+      }
+    };
+  }
+
+  // Method to reinitialize transporter (for retry scenarios)
+  // Create fallback transporter without Gmail service dependency
+  createFallbackTransporter() {
+    return nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      },
+      tls: {
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      },
+      connectionTimeout: 15000, // Shorter timeout
+      greetingTimeout: 8000,
+      socketTimeout: 15000,
+      pool: false, // No pooling for fallback
+      logger: false,
+      debug: false
+    });
+  }
+
+  initializeTransporter() {
+    // Primary: Gmail service
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      },
+      tls: {
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      },
+      connectionTimeout: 20000, // 20 seconds
+      greetingTimeout: 10000,   // 10 seconds
+      socketTimeout: 20000,     // 20 seconds
+      pool: true,
+      maxConnections: 2,
+      maxMessages: 10,
+      logger: false,
+      debug: false
+    });
+  }
+
+  // Queue email for manual sending or alternative delivery
+  async queueEmailForManualSending(emailData) {
+    try {
+      // You can store this in database or send to external service
+      console.log('📬 Queuing email for alternative delivery:', {
+        type: emailData.type,
+        to: emailData.to,
+        timestamp: emailData.timestamp
+      });
+      
+      // For now, just log it - you can implement database storage later
+      return { queued: true };
+    } catch (error) {
+      console.error('Failed to queue email:', error.message);
+      return { queued: false };
     }
   }
 
@@ -114,25 +479,17 @@ class EmailService {
     }
   }
 
-  // Send welcome email to new users
+  // Send welcome email to new users with production features
   async sendWelcomeEmail(userEmail, userCredentials, clientInfo = {}) {
-    // Prepare email data outside try block for retry access
-    if (!this.initialized) {
-      console.log('⚠️ Email service not initialized - skipping email');
-      return { success: false, reason: 'email_service_not_configured' };
+    // Production validation
+    const validationResult = this.validateEmailRequest(userEmail, 'welcome');
+    if (!validationResult.valid) {
+      return validationResult;
     }
 
-    // Skip sending to test/example domains
-    const testDomains = ['example.com', 'test.com', 'localhost'];
-    const emailDomain = userEmail.split('@')[1]?.toLowerCase();
-    
-    if (testDomains.includes(emailDomain)) {
-      console.log(`⚠️ Skipping email to test domain: ${emailDomain}`);
-      return { 
-        success: true, 
-        reason: 'test_domain_skipped',
-        message: `Email not sent to test domain: ${emailDomain}`
-      };
+    // Rate limiting check
+    if (this.isRateLimited()) {
+      return this.queueEmail('welcome', userEmail, userCredentials, clientInfo);
     }
 
     const { name, password, credits, clientSource = 'Unknown' } = userCredentials;
@@ -157,19 +514,25 @@ class EmailService {
     };
 
     try {
-
-      const result = await this.transporter.sendMail(mailOptions);
+      const result = await this.sendEmailWithRetry(mailOptions, 'welcome');
+      
+      // Update statistics
+      this.stats.sent++;
+      this.stats.lastSent = new Date();
+      this.emailsSentThisWindow++;
       
       console.log('✅ Welcome email sent successfully:', {
         messageId: result.messageId,
         to: userEmail,
-        client: clientSource
+        client: clientSource,
+        rateLimitStatus: `${this.emailsSentThisWindow}/${this.maxEmailsPerWindow}`
       });
 
       return { 
         success: true, 
         messageId: result.messageId,
-        to: userEmail 
+        to: userEmail,
+        stats: this.getStats()
       };
 
     } catch (error) {
@@ -181,43 +544,47 @@ class EmailService {
         stack: error.stack?.split('\n')[0]
       });
       
-      // For timeout errors, try to reconnect and retry once
+      // For timeout errors, try multiple fallback strategies
       if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
-        console.log('🔄 Attempting email retry due to timeout...');
+        console.log('🔄 Attempting email retry with fallback transporter...');
         try {
-          // Close existing connection and create new one
+          // Close existing connection
           if (this.transporter && this.transporter.close) {
             await this.transporter.close();
           }
           
-          // Wait 2 seconds before retry
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 3000));
           
-          // Reinitialize transporter
-          this.initializeTransporter();
+          // Use fallback transporter
+          console.log('🔄 Using fallback SMTP configuration...');
+          const fallbackTransporter = this.createFallbackTransporter();
           
-          // Wait for connection to establish
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Retry once
-          const retryResult = await this.transporter.sendMail(mailOptions);
-          console.log('✅ Welcome email sent on retry:', {
+          // Retry with fallback
+          const retryResult = await fallbackTransporter.sendMail(mailOptions);
+          console.log('✅ Welcome email sent with fallback:', {
             messageId: retryResult.messageId,
             to: userEmail
           });
+          
+          // Close fallback transporter
+          if (fallbackTransporter.close) {
+            fallbackTransporter.close();
+          }
           
           return { 
             success: true, 
             messageId: retryResult.messageId,
             to: userEmail,
-            retry: true
+            fallback: true
           };
         } catch (retryError) {
-          console.error('❌ Retry also failed:', retryError.message);
+          console.error('❌ Fallback also failed:', retryError.message);
           return { 
             success: false, 
             error: retryError.message,
-            originalError: error.message
+            originalError: error.message,
+            fallbackFailed: true
           };
         }
       }
@@ -339,23 +706,15 @@ The CloneX Team
 
   // Send credit addition email for existing users
   async sendExistingUserCreditEmail(userEmail, creditDetails) {
-    // Prepare email data outside try block for retry access
-    if (!this.initialized) {
-      console.log('⚠️ Email service not initialized - skipping email');
-      return { success: false, reason: 'email_service_not_configured' };
+    // Production validation
+    const validationResult = this.validateEmailRequest(userEmail, 'existing_user_credit');
+    if (!validationResult.valid) {
+      return validationResult;
     }
 
-    // Skip sending to test/example domains
-    const testDomains = ['example.com', 'test.com', 'localhost'];
-    const emailDomain = userEmail.split('@')[1]?.toLowerCase();
-    
-    if (testDomains.includes(emailDomain)) {
-      console.log(`⚠️ Skipping email to test domain: ${emailDomain}`);
-      return { 
-        success: true, 
-        reason: 'test_domain_skipped',
-        message: `Email not sent to test domain: ${emailDomain}`
-      };
+    // Rate limiting check
+    if (this.isRateLimited()) {
+      return this.queueEmail('existing_user_credit', userEmail, creditDetails);
     }
 
     const { credits, amount, clientSource = 'Unknown' } = creditDetails;
@@ -379,19 +738,25 @@ The CloneX Team
     };
 
     try {
-
-      const result = await this.transporter.sendMail(mailOptions);
+      const result = await this.sendEmailWithRetry(mailOptions, 'existing_user_credit');
+      
+      // Update statistics
+      this.stats.sent++;
+      this.stats.lastSent = new Date();
+      this.emailsSentThisWindow++;
       
       console.log('✅ Existing user credit email sent successfully:', {
         messageId: result.messageId,
         to: userEmail,
-        credits: credits
+        credits: credits,
+        rateLimitStatus: `${this.emailsSentThisWindow}/${this.maxEmailsPerWindow}`
       });
 
       return { 
         success: true, 
         messageId: result.messageId,
-        to: userEmail 
+        to: userEmail,
+        stats: this.getStats()
       };
 
     } catch (error) {
@@ -403,44 +768,71 @@ The CloneX Team
         stack: error.stack?.split('\n')[0]
       });
       
-      // For timeout errors, try to reconnect and retry once
+      // For timeout errors, try multiple fallback strategies
       if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
-        console.log('🔄 Attempting email retry due to timeout...');
+        console.log('🔄 Attempting email retry with fallback transporter...');
         try {
-          // Close existing connection and create new one
+          // Close existing connection
           if (this.transporter && this.transporter.close) {
             await this.transporter.close();
           }
           
-          // Wait 2 seconds before retry
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 3000));
           
-          // Reinitialize transporter
-          this.initializeTransporter();
+          // Use fallback transporter (direct SMTP without Gmail service)
+          console.log('🔄 Using fallback SMTP configuration...');
+          const fallbackTransporter = this.createFallbackTransporter();
           
-          // Wait for connection to establish
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Retry once
-          const retryResult = await this.transporter.sendMail(mailOptions);
-          console.log('✅ Existing user credit email sent on retry:', {
+          // Retry with fallback
+          const retryResult = await fallbackTransporter.sendMail(mailOptions);
+          console.log('✅ Existing user credit email sent with fallback:', {
             messageId: retryResult.messageId,
             to: userEmail,
             credits: creditDetails.credits
           });
           
+          // Close fallback transporter
+          if (fallbackTransporter.close) {
+            fallbackTransporter.close();
+          }
+          
           return { 
             success: true, 
             messageId: retryResult.messageId,
             to: userEmail,
-            retry: true
+            fallback: true
           };
         } catch (retryError) {
-          console.error('❌ Retry also failed:', retryError.message);
+          console.error('❌ Fallback also failed:', retryError.message);
+          
+          // Last resort: Try webhook-based email service or log for manual sending
+          console.log('📧 All email methods failed, logging content for manual sending:', {
+            to: userEmail,
+            subject: 'Credits Added to Your CloneX Account!',
+            credits: creditDetails.credits,
+            amount: creditDetails.amount,
+            clientSource: creditDetails.clientSource
+          });
+          
+          // Try to send notification via webhook or database queue
+          try {
+            await this.queueEmailForManualSending({
+              type: 'existing_user_credit',
+              to: userEmail,
+              data: creditDetails,
+              timestamp: new Date().toISOString()
+            });
+          } catch (queueError) {
+            console.warn('Failed to queue email:', queueError.message);
+          }
+          
           return { 
             success: false, 
             error: retryError.message,
-            originalError: error.message
+            originalError: error.message,
+            fallbackFailed: true,
+            queued: true
           };
         }
       }
@@ -620,6 +1012,108 @@ The CloneX Team
     </body>
     </html>
     `;
+  }
+
+  // Production health check
+  async healthCheck() {
+    const health = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      initialized: this.initialized,
+      stats: this.getStats(),
+      transporter: {
+        primary: false,
+        fallback: false
+      },
+      environment: this.isProduction ? 'production' : 'development'
+    };
+
+    // Test primary transporter
+    try {
+      if (this.transporter) {
+        await this.transporter.verify();
+        health.transporter.primary = true;
+      }
+    } catch (error) {
+      console.warn('Primary transporter health check failed:', error.message);
+      health.status = 'degraded';
+    }
+
+    // Test fallback transporter
+    try {
+      if (this.fallbackTransporter) {
+        await this.fallbackTransporter.verify();
+        health.transporter.fallback = true;
+      }
+    } catch (error) {
+      console.warn('Fallback transporter health check failed:', error.message);
+      if (!health.transporter.primary) {
+        health.status = 'unhealthy';
+      }
+    }
+
+    return health;
+  }
+
+  // Admin method to clear email queue
+  clearQueue() {
+    const queueLength = this.emailQueue.length;
+    this.emailQueue = [];
+    console.log(`📬 Email queue cleared: ${queueLength} emails removed`);
+    return { cleared: queueLength };
+  }
+
+  // Admin method to force process queue
+  async forceProcessQueue() {
+    console.log('🚀 Force processing email queue...');
+    const originalRateLimit = this.maxEmailsPerWindow;
+    this.maxEmailsPerWindow = 1000; // Temporarily increase limit
+    
+    await this.processEmailQueue();
+    
+    this.maxEmailsPerWindow = originalRateLimit;
+    return { processed: true, remaining: this.emailQueue.length };
+  }
+
+  // Admin method to send test email
+  async sendTestEmail(testEmail = 'test@example.com') {
+    if (this.isProduction && testEmail.includes('example.com')) {
+      return { error: 'Cannot send to example.com in production' };
+    }
+
+    const testMailOptions = {
+      from: {
+        name: process.env.EMAIL_FROM_NAME || 'CloneX App',
+        address: process.env.SMTP_USER
+      },
+      to: testEmail,
+      subject: `CloneX Email Service Test - ${new Date().toISOString()}`,
+      html: `
+        <h2>Email Service Test</h2>
+        <p>This is a test email from CloneX email service.</p>
+        <p><strong>Environment:</strong> ${this.isProduction ? 'Production' : 'Development'}</p>
+        <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+        <p><strong>Stats:</strong> ${JSON.stringify(this.getStats(), null, 2)}</p>
+      `,
+      text: `CloneX Email Service Test - ${new Date().toISOString()}`
+    };
+
+    try {
+      const result = await this.sendEmailWithRetry(testMailOptions, 'test');
+      return { 
+        success: true, 
+        messageId: result.messageId,
+        to: testEmail,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.message,
+        to: testEmail,
+        timestamp: new Date().toISOString()
+      };
+    }
   }
 }
 

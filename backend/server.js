@@ -345,24 +345,45 @@ app.use('/api/user', userRoutes); // User routes include auth middleware where n
 app.use('/api/admin', adminRoutes); // Admin routes with built-in auth
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
   const admin = require('firebase-admin');
+  const emailService = require('./services/emailService');
   
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    environment: process.env.NODE_ENV,
-    configuration: {
-      developmentMode: process.env.DEVELOPMENT_MODE === 'true',
-      firebaseConfigured: admin.apps.length > 0,
-      cloudinaryConfigured: !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY),
-      elevenLabsConfigured: !!process.env.ELEVENLABS_API_KEY,
-      didConfigured: !!process.env.DID_API_KEY,
-      port: process.env.PORT || 5000,
-    }
-  });
+  try {
+    // Get email service health
+    const emailHealth = await emailService.healthCheck();
+    
+    res.json({ 
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      environment: process.env.NODE_ENV,
+      services: {
+        email: {
+          status: emailHealth.status,
+          initialized: emailHealth.initialized,
+          stats: emailHealth.stats
+        }
+      },
+      configuration: {
+        developmentMode: process.env.DEVELOPMENT_MODE === 'true',
+        firebaseConfigured: admin.apps.length > 0,
+        cloudinaryConfigured: !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY),
+        elevenLabsConfigured: !!process.env.ELEVENLABS_API_KEY,
+        didConfigured: !!process.env.DID_API_KEY,
+        emailConfigured: !!(process.env.SMTP_USER && process.env.SMTP_PASS),
+        port: process.env.PORT || 5000,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      environment: process.env.NODE_ENV
+    });
+  }
 });
 
 // API health endpoint for admin
