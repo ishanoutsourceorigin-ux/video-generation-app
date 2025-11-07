@@ -162,19 +162,29 @@ router.post('/webhook/client-payment', async (req, res) => {
         metadata: paymentIntent.metadata
       });
 
+      console.log('🔍 Extracting customer data from payment...');
+
       // Initialize client user service
       const clientUserService = require('../services/clientUserService');
       clientUserService.init();
 
-      // Extract customer information
+      // Extract customer information (multiple fallbacks)
       const customerEmail = paymentIntent.receipt_email || 
+                          paymentIntent.metadata?.customerEmail ||
                           paymentIntent.metadata?.customer_email ||
                           paymentIntent.metadata?.email;
       
-      const customerName = paymentIntent.metadata?.customer_name ||
+      const customerName = paymentIntent.metadata?.customerName ||
+                          paymentIntent.metadata?.customer_name ||
                           paymentIntent.metadata?.name ||
                           paymentIntent.shipping?.name ||
                           customerEmail?.split('@')[0];
+                     
+      console.log('📋 Extracted customer data:', {
+        customerEmail,
+        customerName,
+        source: 'payment_intent_metadata'
+      });
 
       if (!customerEmail) {
         console.error('❌ No customer email found in payment intent');
@@ -860,11 +870,11 @@ router.post('/test-client-webhook', async (req, res) => {
     clientUserService.init();
 
     const testPaymentData = {
-      email: 'test-client@example.com',
+      email: 'infinityzoneusa1@gmail.com', // Use real email for testing
       amount: 2999, // $29.99 in cents
       currency: 'usd',
       paymentIntentId: `test-pi-${Date.now()}`,
-      customerEmail: 'test-client@example.com',
+      customerEmail: 'infinityzoneusa1@gmail.com', // Use real email for testing
       customerName: 'Test Client User',
       clientSource: 'test-client-website',
       metadata: {

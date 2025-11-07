@@ -47,6 +47,19 @@ class EmailService {
         return { success: false, reason: 'email_service_not_configured' };
       }
 
+      // Skip sending to test/example domains
+      const testDomains = ['example.com', 'test.com', 'localhost'];
+      const emailDomain = userEmail.split('@')[1]?.toLowerCase();
+      
+      if (testDomains.includes(emailDomain)) {
+        console.log(`⚠️ Skipping email to test domain: ${emailDomain}`);
+        return { 
+          success: true, 
+          reason: 'test_domain_skipped',
+          message: `Email not sent to test domain: ${emailDomain}`
+        };
+      }
+
       const { name, password, credits, clientSource = 'Unknown' } = userCredentials;
 
       const welcomeTemplate = this.getWelcomeTemplate(
