@@ -17,7 +17,7 @@ class EmailService {
     this.isDevelopment = process.env.NODE_ENV === 'development';
     
     // Production email bypass mode (when SMTP is blocked)
-    this.bypassMode = process.env.EMAIL_BYPASS_MODE === 'true';
+    this.bypassMode = process.env.EMAIL_BYPASS_MODE === 'true' || this.isProduction;
     this.consecutiveFailures = 0;
     this.maxConsecutiveFailures = 5; // Auto-enable bypass after 5 failures
     
@@ -752,7 +752,7 @@ class EmailService {
         </div>
         
         <div class="content">
-            // <h2>Hello ${name}! 👋</h2>
+         
             <h2>Hello 👋</h2>
             
             <p>Great news! Your CloneX account has been automatically created following your recent purchase through our website.</p>
@@ -786,15 +786,13 @@ class EmailService {
                 <p><strong>Pro Tip:</strong> Change your password after first login for security!</p>
             </div>
             
-            // <p><strong>Ye apki email hai, password ye hai - login kar ke CloneX app use karen!</strong></p>
-            
-            // <a href="mailto:support@clonex.com" class="button">Contact Support</a>
+          
         </div>
         
         <div class="footer">
             <p>Happy creating! <br>
             <strong>The CloneX Team</strong></p>
-            <p><em>This email was sent because you purchased credits through ${clientSource}</em></p>
+            <p><em>This email was sent because you purchased credits through our website</em></p>
         </div>
     </body>
     </html>
@@ -825,8 +823,6 @@ FEATURES:
 - Export and share anywhere
 
 Download the app: https://play.google.com/store/apps/details?id=com.clonex.video_gen_app
-
-Need help? Contact us at support@videogenapp.com
 
 Happy creating!
 The CloneX Team
@@ -1000,7 +996,7 @@ The CloneX Team
     </head>
     <body>
         <div class="header">
-            <h1>💰 Credits Added to Your Account!</h1>
+            <h1>Credits Added to Your Account!</h1>
             <p>Your CloneX account has been credited</p>
         </div>
         
@@ -1010,43 +1006,42 @@ The CloneX Team
             <p>Great news! Your CloneX account already exists and we've added more credits to your balance.</p>
             
             <div class="credits-box">
-                <h3>💳 Payment Details:</h3>
+                <h3>Payment Details:</h3>
                 <p><strong>Amount Paid:</strong> $${amount}</p>
                 <p><strong>Credits Added:</strong> <span class="highlight">${credits} credits</span></p>
                 <p><strong>Your Email:</strong> ${userEmail}</p>
-                <p><strong>Purchase Source:</strong> ${clientSource}</p>
+                <p><strong>Purchase Source:</strong> Website</p>
             </div>
             
-            <h3>🚀 Ready to Create Videos:</h3>
+            <h3>Ready to Create Videos:</h3>
             <p>This user already exists in CloneX app. <strong>Kindly login to check your updated credit balance!</strong></p>
             
             <ol>
                 <li><strong>Open CloneX App:</strong>
-                    <br>📱 <a href="https://play.google.com/store/apps/details?id=com.clonex.video_gen_app" class="button">Open Android App</a>
-                    <br>🍎 <em>iOS version available in App Store!</em>
+                    <br><a href="https://play.google.com/store/apps/details?id=com.clonex.video_gen_app" class="button">Open Android App</a>
+                    <br><em>iOS version available in App Store!</em>
                 </li>
                 <li><strong>Login with your existing credentials</strong></li>
                 <li><strong>Check your updated credit balance</strong></li>
                 <li><strong>Start creating amazing videos!</strong></li>
             </ol>
             
-            <h3>✨ What You Can Do:</h3>
+            <h3>What You Can Do:</h3>
             <ul>
-                <li>🎭 Create talking avatar videos</li>
-                <li>🎵 Add AI-generated voiceovers</li>
-                <li>🎨 Generate professional video content</li>
-                <li>📱 Export and share anywhere</li>
+                <li>Create talking avatar videos</li>
+                <li>Add AI-generated voiceovers</li>
+                <li>Generate professional video content</li>
+                <li>Export and share anywhere</li>
             </ul>
             
             <p>Your credits are ready to use! Start creating amazing videos today! 🎬</p>
             
-            <a href="mailto:support@clonex.com" class="button">Contact Support</a>
         </div>
         
         <div class="footer">
             <p>Keep creating! 🎬<br>
             <strong>The CloneX Team</strong></p>
-            <p><em>Credits added via ${clientSource}</em></p>
+            <p><em>Credits added via Website</em></p>
         </div>
     </body>
     </html>
@@ -1077,8 +1072,6 @@ This user already exists in CloneX app. Kindly login to check your updated credi
 
 Your credits are ready to use!
 
-Need help? Contact us at support@clonex.com
-
 The CloneX Team
     `;
   }
@@ -1098,10 +1091,10 @@ The CloneX Team
     </head>
     <body>
         <div class="header">
-            <h2>✅ Payment Confirmed!</h2>
+            <h2>Payment Confirmed!</h2>
         </div>
         <div class="content">
-            <p>Your payment has been successfully processed through <strong>${clientSource}</strong>.</p>
+            <p>Your payment has been successfully processed through our website.</p>
             
             <h3>Payment Details:</h3>
             <ul>

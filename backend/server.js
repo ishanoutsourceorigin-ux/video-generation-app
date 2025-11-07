@@ -396,6 +396,41 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Test email endpoint (temporary for debugging)
+app.post('/test-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const testEmail = email || 'ishanoutsourceorigin@gmail.com';
+    
+    console.log('📧 Testing email send to:', testEmail);
+    
+    const emailService = require('./services/emailService');
+    
+    // Test welcome email
+    const result = await emailService.sendWelcomeEmail(testEmail, {
+      name: 'Test User',
+      password: 'test123',
+      credits: 800,
+      clientSource: 'Local Test'
+    });
+    
+    res.json({
+      success: true,
+      message: 'Test email sent successfully',
+      result: result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Test email failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // API info endpoint
 app.get('/api', (req, res) => {
   res.json({
