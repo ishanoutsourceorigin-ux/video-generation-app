@@ -875,8 +875,8 @@ router.post('/test-client-webhook', async (req, res) => {
       currency: 'usd',
       paymentIntentId: `test-pi-${Date.now()}`,
       customerEmail: 'infinityzoneusa1@gmail.com', // Use real email for testing
-      customerName: '',
-      clientSource: '',
+      customerName: 'Test Client User',
+      clientSource: 'test-client-website',
       metadata: {
         testMode: true,
         webhookTest: true
