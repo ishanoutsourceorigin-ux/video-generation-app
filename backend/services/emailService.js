@@ -21,9 +21,12 @@ class EmailService {
         tls: {
           rejectUnauthorized: false
         },
-        connectionTimeout: 10000, // 10 seconds
-        greetingTimeout: 5000, // 5 seconds
-        socketTimeout: 10000 // 10 seconds
+        connectionTimeout: 30000, // 30 seconds
+        greetingTimeout: 15000, // 15 seconds
+        socketTimeout: 30000, // 30 seconds
+        pool: true, // Use connection pooling
+        maxConnections: 5,
+        maxMessages: 100
       });
 
       // Verify connection with timeout
