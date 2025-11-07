@@ -116,45 +116,47 @@ class EmailService {
 
   // Send welcome email to new users
   async sendWelcomeEmail(userEmail, userCredentials, clientInfo = {}) {
-    try {
-      if (!this.initialized) {
-        console.log('⚠️ Email service not initialized - skipping email');
-        return { success: false, reason: 'email_service_not_configured' };
-      }
+    // Prepare email data outside try block for retry access
+    if (!this.initialized) {
+      console.log('⚠️ Email service not initialized - skipping email');
+      return { success: false, reason: 'email_service_not_configured' };
+    }
 
-      // Skip sending to test/example domains
-      const testDomains = ['example.com', 'test.com', 'localhost'];
-      const emailDomain = userEmail.split('@')[1]?.toLowerCase();
-      
-      if (testDomains.includes(emailDomain)) {
-        console.log(`⚠️ Skipping email to test domain: ${emailDomain}`);
-        return { 
-          success: true, 
-          reason: 'test_domain_skipped',
-          message: `Email not sent to test domain: ${emailDomain}`
-        };
-      }
-
-      const { name, password, credits, clientSource = 'Unknown' } = userCredentials;
-
-      const welcomeTemplate = this.getWelcomeTemplate(
-        name,
-        userEmail,
-        password,
-        credits,
-        clientSource
-      );
-
-      const mailOptions = {
-        from: {
-          name: process.env.EMAIL_FROM_NAME || 'CloneX App',
-          address: process.env.SMTP_USER
-        },
-        to: userEmail,
-        subject: 'Welcome to CloneX - Your Account is Ready!',
-        html: welcomeTemplate,
-        text: this.getWelcomeTextVersion(name, userEmail, password, credits)
+    // Skip sending to test/example domains
+    const testDomains = ['example.com', 'test.com', 'localhost'];
+    const emailDomain = userEmail.split('@')[1]?.toLowerCase();
+    
+    if (testDomains.includes(emailDomain)) {
+      console.log(`⚠️ Skipping email to test domain: ${emailDomain}`);
+      return { 
+        success: true, 
+        reason: 'test_domain_skipped',
+        message: `Email not sent to test domain: ${emailDomain}`
       };
+    }
+
+    const { name, password, credits, clientSource = 'Unknown' } = userCredentials;
+
+    const welcomeTemplate = this.getWelcomeTemplate(
+      name,
+      userEmail,
+      password,
+      credits,
+      clientSource
+    );
+
+    const mailOptions = {
+      from: {
+        name: process.env.EMAIL_FROM_NAME || 'CloneX App',
+        address: process.env.SMTP_USER
+      },
+      to: userEmail,
+      subject: 'Welcome to CloneX - Your Account is Ready!',
+      html: welcomeTemplate,
+      text: this.getWelcomeTextVersion(name, userEmail, password, credits)
+    };
+
+    try {
 
       const result = await this.transporter.sendMail(mailOptions);
       
@@ -337,44 +339,46 @@ The CloneX Team
 
   // Send credit addition email for existing users
   async sendExistingUserCreditEmail(userEmail, creditDetails) {
-    try {
-      if (!this.initialized) {
-        console.log('⚠️ Email service not initialized - skipping email');
-        return { success: false, reason: 'email_service_not_configured' };
-      }
+    // Prepare email data outside try block for retry access
+    if (!this.initialized) {
+      console.log('⚠️ Email service not initialized - skipping email');
+      return { success: false, reason: 'email_service_not_configured' };
+    }
 
-      // Skip sending to test/example domains
-      const testDomains = ['example.com', 'test.com', 'localhost'];
-      const emailDomain = userEmail.split('@')[1]?.toLowerCase();
-      
-      if (testDomains.includes(emailDomain)) {
-        console.log(`⚠️ Skipping email to test domain: ${emailDomain}`);
-        return { 
-          success: true, 
-          reason: 'test_domain_skipped',
-          message: `Email not sent to test domain: ${emailDomain}`
-        };
-      }
-
-      const { credits, amount, clientSource = 'Unknown' } = creditDetails;
-
-      const existingUserTemplate = this.getExistingUserTemplate(
-        userEmail,
-        credits,
-        amount,
-        clientSource
-      );
-
-      const mailOptions = {
-        from: {
-          name: process.env.EMAIL_FROM_NAME || 'CloneX CloneX',
-          address: process.env.SMTP_USER
-        },
-        to: userEmail,
-        subject: 'Credits Added to Your CloneX Account!',
-        html: existingUserTemplate,
-        text: this.getExistingUserTextVersion(userEmail, credits, amount)
+    // Skip sending to test/example domains
+    const testDomains = ['example.com', 'test.com', 'localhost'];
+    const emailDomain = userEmail.split('@')[1]?.toLowerCase();
+    
+    if (testDomains.includes(emailDomain)) {
+      console.log(`⚠️ Skipping email to test domain: ${emailDomain}`);
+      return { 
+        success: true, 
+        reason: 'test_domain_skipped',
+        message: `Email not sent to test domain: ${emailDomain}`
       };
+    }
+
+    const { credits, amount, clientSource = 'Unknown' } = creditDetails;
+
+    const existingUserTemplate = this.getExistingUserTemplate(
+      userEmail,
+      credits,
+      amount,
+      clientSource
+    );
+
+    const mailOptions = {
+      from: {
+        name: process.env.EMAIL_FROM_NAME || 'CloneX CloneX',
+        address: process.env.SMTP_USER
+      },
+      to: userEmail,
+      subject: 'Credits Added to Your CloneX Account!',
+      html: existingUserTemplate,
+      text: this.getExistingUserTextVersion(userEmail, credits, amount)
+    };
+
+    try {
 
       const result = await this.transporter.sendMail(mailOptions);
       
