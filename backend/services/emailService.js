@@ -86,11 +86,11 @@ class EmailService {
 
       const mailOptions = {
         from: {
-          name: process.env.EMAIL_FROM_NAME || 'Video Generator App',
+          name: process.env.EMAIL_FROM_NAME || 'CloneX App',
           address: process.env.SMTP_USER
         },
         to: userEmail,
-        subject: 'Welcome to Video Generator - Your Account is Ready!',
+        subject: 'Welcome to CloneX - Your Account is Ready!',
         html: welcomeTemplate,
         text: this.getWelcomeTextVersion(name, userEmail, password, credits)
       };
@@ -144,9 +144,10 @@ class EmailService {
         </div>
         
         <div class="content">
-            <h2>Hello ${name}! 👋</h2>
+            // <h2>Hello ${name}! 👋</h2>
+            <h2>Hello 👋</h2>
             
-            <p>Great news! Your CloneX account has been automatically created following your recent purchase through <strong>${clientSource}</strong>.</p>
+            <p>Great news! Your CloneX account has been automatically created following your recent purchase through our website.</p>
             
             <div class="credentials">
                 <h3>🔐 Your Login Credentials:</h3>
@@ -177,9 +178,9 @@ class EmailService {
                 <p><strong>Pro Tip:</strong> Change your password after first login for security!</p>
             </div>
             
-            <p><strong>Ye apki email hai, password ye hai - login kar ke CloneX app use karen!</strong></p>
+            // <p><strong>Ye apki email hai, password ye hai - login kar ke CloneX app use karen!</strong></p>
             
-            <a href="mailto:support@clonex.com" class="button">Contact Support</a>
+            // <a href="mailto:support@clonex.com" class="button">Contact Support</a>
         </div>
         
         <div class="footer">
@@ -195,7 +196,7 @@ class EmailService {
   // Plain text version for email clients that don't support HTML
   getWelcomeTextVersion(name, email, password, credits) {
     return `
-Welcome to Video Generator, ${name}!
+Welcome to CloneX, ${name}!
 
 Your account has been automatically created following your recent purchase.
 
@@ -220,7 +221,7 @@ Download the app: https://play.google.com/store/apps/details?id=com.clonex.video
 Need help? Contact us at support@videogenapp.com
 
 Happy creating!
-The Video Generator Team
+The CloneX Team
     `;
   }
 
@@ -256,7 +257,7 @@ The Video Generator Team
 
       const mailOptions = {
         from: {
-          name: process.env.EMAIL_FROM_NAME || 'CloneX Video Generator',
+          name: process.env.EMAIL_FROM_NAME || 'CloneX CloneX',
           address: process.env.SMTP_USER
         },
         to: userEmail,
@@ -299,7 +300,7 @@ The Video Generator Team
 
       const mailOptions = {
         from: {
-          name: process.env.EMAIL_FROM_NAME || 'Video Generator App',
+          name: process.env.EMAIL_FROM_NAME || 'CloneX App',
           address: process.env.SMTP_USER
         },
         to: userEmail,
