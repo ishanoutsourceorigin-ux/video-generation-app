@@ -58,22 +58,44 @@ class EmailService {
 
   // Method to reinitialize transporter (for retry scenarios)
   initializeTransporter() {
-    this.transporter = nodemailer.createTransporter({
-      service: 'gmail',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      connectionTimeout: 30000, // 30 seconds
-      greetingTimeout: 15000, // 15 seconds
-      socketTimeout: 30000, // 30 seconds
-      pool: true, // Use connection pooling
-      maxConnections: 5,
-      maxMessages: 100
-    });
+    // Try Gmail service first, then fallback to SMTP
+    try {
+      this.transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        },
+        tls: {
+          rejectUnauthorized: false
+        },
+        connectionTimeout: 60000, // 60 seconds - more time for Gmail
+        greetingTimeout: 30000, // 30 seconds
+        socketTimeout: 60000, // 60 seconds
+        pool: true,
+        maxConnections: 3, // Fewer connections for Gmail
+        maxMessages: 50,
+        logger: false, // Disable detailed logging
+        debug: false
+      });
+    } catch (error) {
+      console.warn('⚠️ Gmail service failed, trying SMTP fallback:', error.message);
+      this.transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        },
+        tls: {
+          rejectUnauthorized: false
+        },
+        connectionTimeout: 60000,
+        greetingTimeout: 30000,
+        socketTimeout: 60000
+      });
+    }
   }
 
   // Check if email service is healthy
@@ -163,9 +185,17 @@ class EmailService {
         try {
           // Close existing connection and create new one
           if (this.transporter && this.transporter.close) {
-            this.transporter.close();
+            await this.transporter.close();
           }
+          
+          // Wait 2 seconds before retry
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Reinitialize transporter
           this.initializeTransporter();
+          
+          // Wait for connection to establish
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           // Retry once
           const retryResult = await this.transporter.sendMail(mailOptions);
@@ -375,9 +405,17 @@ The CloneX Team
         try {
           // Close existing connection and create new one
           if (this.transporter && this.transporter.close) {
-            this.transporter.close();
+            await this.transporter.close();
           }
+          
+          // Wait 2 seconds before retry
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Reinitialize transporter
           this.initializeTransporter();
+          
+          // Wait for connection to establish
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           // Retry once
           const retryResult = await this.transporter.sendMail(mailOptions);
