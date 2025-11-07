@@ -20,14 +20,28 @@ class EmailService {
         },
         tls: {
           rejectUnauthorized: false
-        }
+        },
+        connectionTimeout: 10000, // 10 seconds
+        greetingTimeout: 5000, // 5 seconds
+        socketTimeout: 10000 // 10 seconds
       });
 
-      // Verify connection
+      // Verify connection with timeout
       if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        await this.transporter.verify();
-        console.log('✅ Email service initialized successfully');
-        this.initialized = true;
+        try {
+          // Set verification timeout
+          const verificationPromise = this.transporter.verify();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Verification timeout')), 5000)
+          );
+          
+          await Promise.race([verificationPromise, timeoutPromise]);
+          console.log('✅ Email service initialized successfully');
+          this.initialized = true;
+        } catch (verifyError) {
+          console.log('⚠️ Email verification failed, but service will still try to send:', verifyError.message);
+          this.initialized = true; // Still try to send emails
+        }
       } else {
         console.log('⚠️ Email service not configured - SMTP credentials missing');
         this.initialized = false;
@@ -112,7 +126,7 @@ class EmailService {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Welcome to Video Generator</title>
+        <title>Welcome to CloneX</title>
         <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
             .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
@@ -125,14 +139,14 @@ class EmailService {
     </head>
     <body>
         <div class="header">
-            <h1>🎬 Welcome to Video Generator!</h1>
+            <h1>🎬 Welcome to CloneX!</h1>
             <p>Your AI-powered video creation account is ready</p>
         </div>
         
         <div class="content">
             <h2>Hello ${name}! 👋</h2>
             
-            <p>Great news! Your Video Generator account has been automatically created following your recent purchase through <strong>${clientSource}</strong>.</p>
+            <p>Great news! Your CloneX account has been automatically created following your recent purchase through <strong>${clientSource}</strong>.</p>
             
             <div class="credentials">
                 <h3>🔐 Your Login Credentials:</h3>
@@ -141,36 +155,36 @@ class EmailService {
                 <p><strong>Credits:</strong> <span class="highlight">${credits} credits</span> ready to use!</p>
             </div>
             
-            <h3>🚀 Getting Started:</h3>
+            <h3>Getting Started:</h3>
             <ol>
                 <li><strong>Download the app:</strong>
-                    <br>📱 <a href="https://play.google.com/store/apps/details?id=com.clonex.video_gen_app" class="button">Download for Android</a>
-                    <br>🍎 <em>iOS version coming soon!</em>
+                    <br><a href="https://play.google.com/store/apps/details?id=com.clonex.video_gen_app" class="button">Download for Android</a>
+                    <br><em>iOS version coming soon!</em>
                 </li>
                 <li><strong>Login with your credentials above</strong></li>
                 <li><strong>Start creating amazing videos with AI!</strong></li>
             </ol>
             
-            <h3>✨ What You Can Do:</h3>
+            <h3>What You Can Do:</h3>
             <ul>
-                <li>🎭 Create talking avatar videos</li>
-                <li>🎵 Add AI-generated voiceovers</li>
-                <li>🎨 Generate professional video content</li>
-                <li>📱 Export and share anywhere</li>
+                <li>Create talking avatar videos</li>
+                <li>Add AI-generated voiceovers</li>
+                <li>Generate professional video content</li>
+                <li>Export and share anywhere</li>
             </ul>
             
             <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <p><strong>💡 Pro Tip:</strong> Change your password after first login for security!</p>
+                <p><strong>Pro Tip:</strong> Change your password after first login for security!</p>
             </div>
             
-            <p>If you have any questions or need help getting started, our support team is here to help!</p>
+            <p><strong>Ye apki email hai, password ye hai - login kar ke CloneX app use karen!</strong></p>
             
-            <a href="mailto:support@videogenapp.com" class="button">Contact Support</a>
+            <a href="mailto:support@clonex.com" class="button">Contact Support</a>
         </div>
         
         <div class="footer">
-            <p>Happy creating! 🎬<br>
-            <strong>The Video Generator Team</strong></p>
+            <p>Happy creating! <br>
+            <strong>The CloneX Team</strong></p>
             <p><em>This email was sent because you purchased credits through ${clientSource}</em></p>
         </div>
     </body>
@@ -210,6 +224,70 @@ The Video Generator Team
     `;
   }
 
+  // Send credit addition email for existing users
+  async sendExistingUserCreditEmail(userEmail, creditDetails) {
+    try {
+      if (!this.initialized) {
+        console.log('⚠️ Email service not initialized - skipping email');
+        return { success: false, reason: 'email_service_not_configured' };
+      }
+
+      // Skip sending to test/example domains
+      const testDomains = ['example.com', 'test.com', 'localhost'];
+      const emailDomain = userEmail.split('@')[1]?.toLowerCase();
+      
+      if (testDomains.includes(emailDomain)) {
+        console.log(`⚠️ Skipping email to test domain: ${emailDomain}`);
+        return { 
+          success: true, 
+          reason: 'test_domain_skipped',
+          message: `Email not sent to test domain: ${emailDomain}`
+        };
+      }
+
+      const { credits, amount, clientSource = 'Unknown' } = creditDetails;
+
+      const existingUserTemplate = this.getExistingUserTemplate(
+        userEmail,
+        credits,
+        amount,
+        clientSource
+      );
+
+      const mailOptions = {
+        from: {
+          name: process.env.EMAIL_FROM_NAME || 'CloneX Video Generator',
+          address: process.env.SMTP_USER
+        },
+        to: userEmail,
+        subject: 'Credits Added to Your CloneX Account!',
+        html: existingUserTemplate,
+        text: this.getExistingUserTextVersion(userEmail, credits, amount)
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      
+      console.log('✅ Existing user credit email sent successfully:', {
+        messageId: result.messageId,
+        to: userEmail,
+        credits: credits
+      });
+
+      return { 
+        success: true, 
+        messageId: result.messageId,
+        to: userEmail 
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to send existing user credit email:', error);
+      return { 
+        success: false, 
+        error: error.message 
+      };
+    }
+  }
+
   // Send payment confirmation email
   async sendPaymentConfirmationEmail(userEmail, paymentDetails) {
     try {
@@ -239,6 +317,110 @@ The Video Generator Team
     }
   }
 
+  // HTML email template for existing users getting credits
+  getExistingUserTemplate(userEmail, credits, amount, clientSource) {
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Credits Added - CloneX</title>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+            .credits-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745; }
+            .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+            .highlight { color: #28a745; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>💰 Credits Added to Your Account!</h1>
+            <p>Your CloneX account has been credited</p>
+        </div>
+        
+        <div class="content">
+            <h2>Hello! 👋</h2>
+            
+            <p>Great news! Your CloneX account already exists and we've added more credits to your balance.</p>
+            
+            <div class="credits-box">
+                <h3>💳 Payment Details:</h3>
+                <p><strong>Amount Paid:</strong> $${amount}</p>
+                <p><strong>Credits Added:</strong> <span class="highlight">${credits} credits</span></p>
+                <p><strong>Your Email:</strong> ${userEmail}</p>
+                <p><strong>Purchase Source:</strong> ${clientSource}</p>
+            </div>
+            
+            <h3>🚀 Ready to Create Videos:</h3>
+            <p>This user already exists in CloneX app. <strong>Kindly login to check your updated credit balance!</strong></p>
+            
+            <ol>
+                <li><strong>Open CloneX App:</strong>
+                    <br>📱 <a href="https://play.google.com/store/apps/details?id=com.clonex.video_gen_app" class="button">Open Android App</a>
+                    <br>🍎 <em>iOS version available in App Store!</em>
+                </li>
+                <li><strong>Login with your existing credentials</strong></li>
+                <li><strong>Check your updated credit balance</strong></li>
+                <li><strong>Start creating amazing videos!</strong></li>
+            </ol>
+            
+            <h3>✨ What You Can Do:</h3>
+            <ul>
+                <li>🎭 Create talking avatar videos</li>
+                <li>🎵 Add AI-generated voiceovers</li>
+                <li>🎨 Generate professional video content</li>
+                <li>📱 Export and share anywhere</li>
+            </ul>
+            
+            <p>Your credits are ready to use! Start creating amazing videos today! 🎬</p>
+            
+            <a href="mailto:support@clonex.com" class="button">Contact Support</a>
+        </div>
+        
+        <div class="footer">
+            <p>Keep creating! 🎬<br>
+            <strong>The CloneX Team</strong></p>
+            <p><em>Credits added via ${clientSource}</em></p>
+        </div>
+    </body>
+    </html>
+    `;
+  }
+
+  // Plain text version for existing users
+  getExistingUserTextVersion(userEmail, credits, amount) {
+    return `
+Credits Added to Your CloneX Account!
+
+Hello!
+
+Your CloneX account already exists and we've added more credits.
+
+PAYMENT DETAILS:
+Amount: $${amount}
+Credits Added: ${credits} credits
+Email: ${userEmail}
+
+NEXT STEPS:
+This user already exists in CloneX app. Kindly login to check your updated credit balance!
+
+1. Open CloneX app on your device
+2. Login with your existing credentials  
+3. Check your updated credit balance
+4. Start creating amazing videos!
+
+Your credits are ready to use!
+
+Need help? Contact us at support@clonex.com
+
+The CloneX Team
+    `;
+  }
+
   // Payment confirmation email template
   getPaymentConfirmationTemplate(amount, credits, transactionId, clientSource) {
     return `
@@ -266,7 +448,7 @@ The Video Generator Team
                 <li><strong>Transaction ID:</strong> ${transactionId}</li>
             </ul>
             
-            <p>Your credits are now available in your Video Generator app account!</p>
+            <p>Your credits are now available in your CloneX app account!</p>
             
             <p>Start creating amazing videos today! 🎬</p>
         </div>

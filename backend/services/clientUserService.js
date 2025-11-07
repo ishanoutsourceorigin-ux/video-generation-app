@@ -166,20 +166,22 @@ class ClientUserService {
 
         await transaction.save();
 
-        // Send payment confirmation email
-        await emailService.sendPaymentConfirmationEmail(userEmail, {
-          amount: amount / 100,
+        // Send existing user credit email
+        const emailResult = await emailService.sendExistingUserCreditEmail(userEmail, {
           credits,
-          transactionId: paymentIntentId,
+          amount: amount / 100,
           clientSource
         });
+
+        console.log('📧 Existing user email result:', emailResult);
 
         return {
           success: true,
           user: existingUser,
           transaction,
           newUser: false,
-          creditsAdded: credits
+          creditsAdded: credits,
+          emailSent: emailResult.success
         };
       }
 
