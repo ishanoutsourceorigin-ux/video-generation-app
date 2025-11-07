@@ -56,7 +56,43 @@ class EmailService {
     }
   }
 
-  // Send welcome email to new client users
+  // Method to reinitialize transporter (for retry scenarios)
+  initializeTransporter() {
+    this.transporter = nodemailer.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD
+      },
+      tls: {
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 30000, // 30 seconds
+      greetingTimeout: 15000, // 15 seconds
+      socketTimeout: 30000, // 30 seconds
+      pool: true, // Use connection pooling
+      maxConnections: 5,
+      maxMessages: 100
+    });
+  }
+
+  // Check if email service is healthy
+  async checkConnection() {
+    try {
+      if (!this.transporter) {
+        throw new Error('Transporter not initialized');
+      }
+      
+      const verification = await this.transporter.verify();
+      console.log('✅ Email connection healthy');
+      return { healthy: true, message: 'Connection verified' };
+    } catch (error) {
+      console.log('❌ Email connection unhealthy:', error.message);
+      return { healthy: false, error: error.message };
+    }
+  }
+
+  // Send welcome email to new users
   async sendWelcomeEmail(userEmail, userCredentials, clientInfo = {}) {
     try {
       if (!this.initialized) {
@@ -113,10 +149,51 @@ class EmailService {
       };
 
     } catch (error) {
-      console.error('❌ Failed to send welcome email:', error);
+      console.error('❌ Failed to send welcome email:', {
+        error: error.message,
+        code: error.code,
+        command: error.command,
+        to: userEmail,
+        stack: error.stack?.split('\n')[0]
+      });
+      
+      // For timeout errors, try to reconnect and retry once
+      if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+        console.log('🔄 Attempting email retry due to timeout...');
+        try {
+          // Close existing connection and create new one
+          if (this.transporter && this.transporter.close) {
+            this.transporter.close();
+          }
+          this.initializeTransporter();
+          
+          // Retry once
+          const retryResult = await this.transporter.sendMail(mailOptions);
+          console.log('✅ Welcome email sent on retry:', {
+            messageId: retryResult.messageId,
+            to: userEmail
+          });
+          
+          return { 
+            success: true, 
+            messageId: retryResult.messageId,
+            to: userEmail,
+            retry: true
+          };
+        } catch (retryError) {
+          console.error('❌ Retry also failed:', retryError.message);
+          return { 
+            success: false, 
+            error: retryError.message,
+            originalError: error.message
+          };
+        }
+      }
+      
       return { 
         success: false, 
-        error: error.message 
+        error: error.message,
+        code: error.code
       };
     }
   }
@@ -284,10 +361,52 @@ The CloneX Team
       };
 
     } catch (error) {
-      console.error('❌ Failed to send existing user credit email:', error);
+      console.error('❌ Failed to send existing user credit email:', {
+        error: error.message,
+        code: error.code,
+        command: error.command,
+        to: userEmail,
+        stack: error.stack?.split('\n')[0]
+      });
+      
+      // For timeout errors, try to reconnect and retry once
+      if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+        console.log('🔄 Attempting email retry due to timeout...');
+        try {
+          // Close existing connection and create new one
+          if (this.transporter && this.transporter.close) {
+            this.transporter.close();
+          }
+          this.initializeTransporter();
+          
+          // Retry once
+          const retryResult = await this.transporter.sendMail(mailOptions);
+          console.log('✅ Existing user credit email sent on retry:', {
+            messageId: retryResult.messageId,
+            to: userEmail,
+            credits: creditDetails.credits
+          });
+          
+          return { 
+            success: true, 
+            messageId: retryResult.messageId,
+            to: userEmail,
+            retry: true
+          };
+        } catch (retryError) {
+          console.error('❌ Retry also failed:', retryError.message);
+          return { 
+            success: false, 
+            error: retryError.message,
+            originalError: error.message
+          };
+        }
+      }
+      
       return { 
         success: false, 
-        error: error.message 
+        error: error.message,
+        code: error.code
       };
     }
   }
