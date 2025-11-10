@@ -58,7 +58,7 @@ class Environment {
 
   /// Stripe publishable key (from backend .env)
   static const String stripePublishableKey =
-      'pk_test_51S6ePDPO4UDI8rjFDyShCF2urdY2wl7VoOfxwVfvFEufKfZMQHL1RBPvbYBeCOqAdHuVkK0cVHIm1pVfA5oAEoO000Esc0kURR';
+      'pk_live_51PTnGbP6uDfzoCICEGXnJvPaFmiVs0pLn3nfw1RE9151TMVK45YnxBFfSZyHtKy7qyT2Xobgm8qWhUTkcLvbodGR008b5KUS3F';
 
   /// Cloudinary configuration
   static const String cloudinaryCloudName = 'dlmzsseud';

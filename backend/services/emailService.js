@@ -740,7 +740,7 @@ class EmailService {
             .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
             .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
             .credentials { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
-            .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+            .button { display: inline-block; background: #667eea; color: white !important; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
             .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
             .highlight { color: #667eea; font-weight: bold; }
         </style>
@@ -767,7 +767,7 @@ class EmailService {
             <h3>Getting Started:</h3>
             <ol>
                 <li><strong>Download the app:</strong>
-                    <br><a href="https://play.google.com/store/apps/details?id=com.clonex.video_gen_app" class="button">Download for Android</a>
+                    <br><a href="https://play.google.com/store/apps/details?id=com.clonex.video_gen_app" class="button" style="color: white !important; text-decoration: none;">Download for Android</a>
                     <br><em>iOS version coming soon!</em>
                 </li>
                 <li><strong>Login with your credentials above</strong></li>
@@ -1018,7 +1018,7 @@ The CloneX Team
             
             <ol>
                 <li><strong>Open CloneX App:</strong>
-                    <br><a href="https://play.google.com/store/apps/details?id=com.clonex.video_gen_app" class="button">Open Android App</a>
+                    <br><a href="https://play.google.com/store/apps/details?id=com.clonex.video_gen_app" class="button" style="color: white !important; text-decoration: none;">Open Android App</a>
                     <br><em>iOS version available in App Store!</em>
                 </li>
                 <li><strong>Login with your existing credentials</strong></li>

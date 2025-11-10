@@ -448,7 +448,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(width: 12),
               const Text(
-                'About Video Generator',
+                'About CloneX',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,

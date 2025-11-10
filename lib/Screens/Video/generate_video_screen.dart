@@ -403,7 +403,7 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
       // NEW FLOW: RESERVE CREDITS BEFORE VIDEO GENERATION
       final projectId = 'project-${DateTime.now().millisecondsSinceEpoch}';
       print("� Reserving credits for project $projectId...");
-      
+
       final creditsReserved = await CreditSystemService.reserveCredits(
         videoType: 'avatar-video',
         durationMinutes: estimatedMinutes,
@@ -448,14 +448,16 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
         } catch (e) {
           print("Could not extract project ID from result: $e");
         }
-        
+
         // Confirm credits with the actual project ID (or fallback to temp ID)
         final creditConfirmed = await CreditSystemService.confirmCredits(
           projectId: resultProjectId ?? projectId,
         );
 
         if (!creditConfirmed) {
-          print("⚠️ Warning: Could not confirm credits, but video generation started");
+          print(
+            "⚠️ Warning: Could not confirm credits, but video generation started",
+          );
         }
 
         // Success
@@ -468,10 +470,9 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
             duration: Duration(seconds: 4),
           ),
         );
-
       } catch (videoError) {
         print("❌ Video generation failed: $videoError");
-        
+
         // REFUND RESERVED CREDITS
         print("🔄 Refunding reserved credits...");
         final creditRefunded = await CreditSystemService.refundCredits(
@@ -487,7 +488,7 @@ class _GenerateVideoScreenState extends State<GenerateVideoScreen> {
         setState(() {
           _isGenerating = false;
         });
-        
+
         _showError("Video generation failed. Your credits have been refunded.");
         return;
       }
