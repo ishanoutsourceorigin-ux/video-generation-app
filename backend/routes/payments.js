@@ -739,26 +739,99 @@ router.get('/history', authMiddleware, async (req, res) => {
   }
 });
 
-// Helper function to get credits for a plan
+// Helper function to get credits/videos for a plan (NEW SYSTEM)
 function getPlanCredits(planId) {
-  const planCredits = {
-    'basic': 500,
-    'starter': 1300,
-    'pro': 4000,
-    'business': 9000
+  // NEW SUBSCRIPTION PLANS (Monthly videos)
+  const subscriptionPlans = {
+    'basic': 30,           // 30 videos/month
+    'starter': 60,         // 60 videos/month
+    'pro': 150,            // 150 videos/month
   };
-  return planCredits[planId] || 0;
+
+  // NEW CREDIT TOPUPS
+  const creditTopups = {
+    'credits_10': 10,      // 10 credits
+    'credits_20': 20,      // 20 credits
+    'credits_30': 30,      // 30 credits
+  };
+
+  // FACELESS LTD PLANS (from Stripe webhook)
+  const facelessLtdPlans = {
+    'faceless_basic': 30,     // 30 videos/month ($60)
+    'faceless_starter': 60,   // 60 videos/month ($97)
+    'faceless_pro': 150,      // 150 videos/month ($197)
+  };
+
+  // Legacy support
+  const legacyPlans = {
+    'basic_old': 500,
+    'starter_old': 1300,
+    'pro_old': 4000,
+    'business': 9000,
+  };
+
+  return subscriptionPlans[planId] || 
+         creditTopups[planId] || 
+         facelessLtdPlans[planId] ||
+         legacyPlans[planId] || 
+         0;
 }
 
-// Helper function to get price for a plan
+// Helper function to get price for a plan (NEW SYSTEM)
 function getPlanPrice(planId) {
-  const planPrices = {
-    'basic': 9.99,
-    'starter': 24.99,
-    'pro': 69.99,
-    'business': 149.99
+  // NEW SUBSCRIPTION PLANS
+  const subscriptionPrices = {
+    'basic': 27.0,         // $27/month
+    'starter': 47.0,       // $47/month
+    'pro': 97.0,           // $97/month
   };
-  return planPrices[planId] || 0;
+
+  // NEW CREDIT TOPUPS
+  const topupPrices = {
+    'credits_10': 10.0,    // $10
+    'credits_20': 18.0,    // $18
+    'credits_30': 25.0,    // $25
+  };
+
+  // FACELESS LTD PLANS
+  const facelessLtdPrices = {
+    'faceless_basic': 60.0,    // $60 → 30 videos/month
+    'faceless_starter': 97.0,  // $97 → 60 videos/month
+    'faceless_pro': 197.0,     // $197 → 150 videos/month
+  };
+
+  // Legacy support
+  const legacyPrices = {
+    'basic_old': 9.99,
+    'starter_old': 24.99,
+    'pro_old': 69.99,
+    'business': 149.99,
+  };
+
+  return subscriptionPrices[planId] || 
+         topupPrices[planId] || 
+         facelessLtdPrices[planId] ||
+         legacyPrices[planId] || 
+         0;
+}
+
+// Helper function to determine plan type
+function getPlanType(planId) {
+  if (planId.startsWith('credits_')) return 'topup';
+  if (planId.startsWith('faceless_')) return 'faceless_ltd';
+  if (['basic', 'starter', 'pro'].includes(planId)) return 'subscription';
+  return 'legacy';
+}
+
+// Helper function to determine Faceless LTD plan from Stripe amount
+function getFacelessPlanFromAmount(amountInCents) {
+  const facelessMapping = {
+    6000: { planId: 'faceless_basic', videos: 30, price: 60.0 },    // $60 → 30 videos
+    9700: { planId: 'faceless_starter', videos: 60, price: 97.0 },  // $97 → 60 videos
+    19700: { planId: 'faceless_pro', videos: 150, price: 197.0 },   // $197 → 150 videos
+  };
+
+  return facelessMapping[amountInCents] || null;
 }
 
 // Get Stripe publishable key

@@ -72,7 +72,7 @@ router.post('/create', async (req, res) => {
 
     // NEW CREDIT SYSTEM: Check if credits are already reserved for this project
     const estimatedMinutes = Math.ceil(script.length / 150); // ~150 chars per minute
-    const requiredCredits = estimatedMinutes * 40; // 40 credits per minute for avatar videos
+    const requiredCredits = estimatedMinutes * 1; // 1 credit per minute for avatar videos
     
     console.log('💰 NEW CREDIT SYSTEM - Credit calculation:');
     console.log(`📝 Script length: ${script.length} characters`);
@@ -102,7 +102,7 @@ router.post('/create', async (req, res) => {
         required: requiredCredits,
         current: availableCredits,
         estimatedMinutes: estimatedMinutes,
-        creditsPerMinute: 40,
+        creditsPerMinute: 1,
         message: 'Please reserve credits through the frontend first'
       });
     }

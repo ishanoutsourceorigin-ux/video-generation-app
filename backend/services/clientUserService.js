@@ -36,18 +36,37 @@ class ClientUserService {
     return password;
   }
 
-  // Calculate credits based on payment amount
+  // Calculate credits based on payment amount (NEW FACELESS LTD SYSTEM)
   calculateCreditsFromPayment(amountInCents, currency = 'usd') {
     // Convert to dollars
     const amountInDollars = amountInCents / 100;
     
-    // Credit calculation: roughly 50 credits per dollar
-    // This matches the existing plan structure
-    const creditsPerDollar = 50;
+    // NEW FACELESS LTD PRICING
+    // $60 → 30 videos/month
+    // $97 → 60 videos/month
+    // $197 → 150 videos/month
+    
+    const facelessLtdMapping = {
+      60: 30,    // $60 → 30 videos (credits)
+      97: 60,    // $97 → 60 videos (credits)
+      197: 150,  // $197 → 150 videos (credits)
+    };
+
+    // Check exact matches for Faceless LTD plans
+    if (facelessLtdMapping[amountInDollars]) {
+      console.log(`💎 Faceless LTD Plan: $${amountInDollars} → ${facelessLtdMapping[amountInDollars]} videos/month`);
+      return facelessLtdMapping[amountInDollars];
+    }
+
+    // Fallback: For custom amounts, calculate proportionally
+    // Using $2 per video as base rate
+    const creditsPerDollar = 0.5; // Approximately 2 dollars per video
     const calculatedCredits = Math.floor(amountInDollars * creditsPerDollar);
     
-    // Minimum 10 credits for any payment
-    return Math.max(calculatedCredits, 10);
+    console.log(`⚠️ Custom Faceless LTD amount: $${amountInDollars} → ${calculatedCredits} videos (calculated)`);
+    
+    // Minimum 5 videos for any payment
+    return Math.max(calculatedCredits, 5);
   }
 
   // Create Firebase user with email and password

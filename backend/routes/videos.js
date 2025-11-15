@@ -311,9 +311,9 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // CREDIT CHECK: Avatar video generation (40 credits per minute estimated)
+    // CREDIT CHECK: Avatar video generation (1 credit per minute)
     const estimatedMinutes = Math.ceil(script.length / 150); // ~150 chars per minute
-    const requiredCredits = estimatedMinutes * 40; // 40 credits per minute for avatar videos
+    const requiredCredits = estimatedMinutes * 1; // 1 credit per minute for avatar videos
     
     console.log('💰 Credit calculation:');
     console.log(`📝 Script length: ${script.length} characters`);
@@ -338,7 +338,7 @@ router.post('/create', async (req, res) => {
           required: requiredCredits,
           current: user.credits,
           estimatedMinutes: estimatedMinutes,
-          creditsPerMinute: 40
+          creditsPerMinute: 1
         });
       }
 
