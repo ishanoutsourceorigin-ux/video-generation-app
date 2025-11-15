@@ -613,11 +613,19 @@ router.post('/verify-purchase', authMiddleware, async (req, res) => {
     }
 
     // Calculate credits to add
-    const creditsToAdd = credits || getPlanCredits(planId);
+    let creditsToAdd = credits || getPlanCredits(planId);
+    
+    // FALLBACK: If no credits calculated (test products), use credits from request or default to 30
+    if (!creditsToAdd || creditsToAdd === 0) {
+      console.log(`⚠️ No credits found for planId '${planId}', using fallback`);
+      creditsToAdd = credits || 30; // Default to 30 credits for test purchases
+      console.log(`✅ Fallback: Adding ${creditsToAdd} credits`);
+    }
+    
     const previousBalance = user.availableCredits || user.credits || 0;
     
     console.log('💰 Credit Update Details:');
-    console.log(`📊 User: ${user.email} (${user.displayName})`);
+    console.log(`📊 User: ${user.email} (${user.name || user.displayName})`);
     console.log(`📊 Previous balance: ${previousBalance}`);
     console.log(`➕ Credits to add: ${creditsToAdd}`);
     console.log(`📈 New balance: ${previousBalance + creditsToAdd}`);
@@ -671,6 +679,8 @@ router.post('/verify-purchase', authMiddleware, async (req, res) => {
       console.log(`- User: ${req.user.uid}`);
       console.log(`- Credits Added: ${creditsToAdd}`);
       console.log(`- New Balance: ${user.availableCredits}`);
+      console.log(`📅 Purchase Date: ${transaction.createdAt.toISOString()}`);
+      console.log(`📅 Local Time: ${transaction.createdAt.toLocaleString('en-US', { timeZone: 'Asia/Karachi' })}`);
 
       res.json({
         success: true,
@@ -680,6 +690,8 @@ router.post('/verify-purchase', authMiddleware, async (req, res) => {
         newBalance: user.availableCredits,
         transactionId: transactionId,
         planId: planId,
+        purchaseDate: transaction.createdAt.toISOString(),
+        purchaseDateLocal: transaction.createdAt.toLocaleString('en-US', { timeZone: 'Asia/Karachi' }),
         message: 'Purchase verified and credits added successfully'
       });
 

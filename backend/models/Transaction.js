@@ -34,7 +34,16 @@ const transactionSchema = new mongoose.Schema({
   // Plan Information
   planType: {
     type: String,
-    enum: ['starter', 'pro', 'enterprise', 'credit_pack', 'basic', 'business'],
+    enum: [
+      // Legacy plans
+      'starter', 'pro', 'enterprise', 'credit_pack', 'business',
+      // New subscription plans
+      'basic',
+      // New credit top-ups
+      'credits_10', 'credits_20', 'credits_30',
+      // Faceless LTD plans
+      'faceless_basic', 'faceless_starter', 'faceless_pro'
+    ],
   },
   planId: {
     type: String,
