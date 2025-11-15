@@ -43,10 +43,12 @@ class _CreateVideoState extends State<CreateVideo> {
     required String videoType,
     required Widget destination,
     int? durationMinutes,
+    int? durationSeconds,
   }) async {
     final requiredCredits = CreditSystemService.calculateRequiredCredits(
       videoType: videoType,
       durationMinutes: durationMinutes,
+      durationSeconds: durationSeconds,
     );
 
     if (_currentCredits < requiredCredits) {
@@ -301,10 +303,7 @@ class _CreateVideoState extends State<CreateVideo> {
                 title: "Text-Based Video",
                 subtitle: "Generate video from text description",
                 creditsRequired: 320,
-                // onTap: () => _checkCreditsAndNavigate(
-                //   videoType: 'text-to-video',
-                //   destination: const TextBasedVideoScreen(),
-                // ),
+                comingSoon: true,
                 onTap: () => _showComingSoonDialog(),
               ),
               const SizedBox(height: 20),
@@ -315,8 +314,8 @@ class _CreateVideoState extends State<CreateVideo> {
                 iconColor: AppColors.purpleColor,
                 title: "Avatar Video",
                 subtitle: "Use your AI Avatar to speak your script",
-                creditsRequired: 40,
-                creditsUnit: "per minute",
+                creditsRequired: 1,
+                creditsUnit: "credit per minute",
                 onTap: () => _checkCreditsAndNavigate(
                   videoType: 'avatar-video',
                   destination: const MyAvatarsScreen(),
@@ -368,6 +367,7 @@ class _CreateVideoState extends State<CreateVideo> {
     required VoidCallback onTap,
     required int creditsRequired,
     String? creditsUnit,
+    bool comingSoon = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -378,81 +378,118 @@ class _CreateVideoState extends State<CreateVideo> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.greyColor.withValues(alpha: 0.3)),
         ),
-        child: Row(
+        child: Stack(
           children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: iconColor,
-                shape: BoxShape.circle,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Image.asset(
-                  imagePath,
-                  width: 40,
-                  height: 40,
-
-                  errorBuilder: (context, error, stackTrace) {
-                    // Fallback to icon if image not found
-                    return Icon(
-                      title.contains("Text") ? Icons.text_fields : Icons.person,
-                      color: iconColor,
-                      size: 28,
-                    );
-                  },
+            Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: comingSoon ? Colors.grey : iconColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Image.asset(
+                      imagePath,
+                      width: 40,
+                      height: 40,
+                      color: comingSoon ? Colors.grey[600] : null,
+                      errorBuilder: (context, error, stackTrace) {
+                        // Fallback to icon if image not found
+                        return Icon(
+                          title.contains("Text")
+                              ? Icons.text_fields
+                              : Icons.person,
+                          color: comingSoon ? Colors.grey[600] : iconColor,
+                          size: 28,
+                        );
+                      },
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: comingSoon ? Colors.grey : Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: comingSoon ? Colors.grey[600] : Colors.grey,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (!comingSoon)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.blueColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppColors.blueColor.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Text(
+                            '$creditsRequired ${creditsUnit != null
+                                ? creditsUnit
+                                : creditsRequired == 1
+                                ? 'credit'
+                                : 'credits'}',
+                            style: TextStyle(
+                              color: AppColors.blueColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: comingSoon ? Colors.grey[600] : Colors.white,
+                  size: 20,
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
+            if (comingSoon)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.purpleColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'COMING SOON',
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.blueColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppColors.blueColor.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Text(
-                      '$creditsRequired credits${creditsUnit != null ? ' $creditsUnit' : ''}',
-                      style: TextStyle(
-                        color: AppColors.blueColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.grey.shade400,
-              size: 16,
-            ),
           ],
         ),
       ),

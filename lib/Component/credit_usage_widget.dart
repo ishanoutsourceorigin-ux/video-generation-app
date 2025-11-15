@@ -150,8 +150,8 @@ class CreditUsageWidget extends StatelessWidget {
                 Expanded(
                   child: Text(
                     videoType == 'text-to-video'
-                        ? 'Text-to-Video: 320 credits per video'
-                        : 'Avatar Video: 40 credits per minute',
+                        ? 'Text-to-Video: ${CreditSystemService.textToVideoCredits} credits per video'
+                        : 'Avatar Video: ${CreditSystemService.avatarVideoCreditsPerMinute} credit per minute',
                     style: const TextStyle(color: Colors.orange, fontSize: 14),
                   ),
                 ),

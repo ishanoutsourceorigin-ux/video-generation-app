@@ -14,12 +14,24 @@ class PaymentService {
   static StreamSubscription<List<PurchaseDetails>>? _subscription;
   static Map<String, dynamic>? _currentPurchaseCallbacks;
 
-  // Product IDs for both platforms (must match Play Console and App Store)
-  static const Map<String, String> productIds = {
-    'basic': 'basic_credits_500',
-    'starter': 'starter_credits_1300',
-    'pro': 'pro_credits_4000',
-    'business': 'business_credits_9000',
+  // NEW PRODUCT IDS - Subscriptions (must match Play Console and App Store)
+  static const Map<String, String> subscriptionProductIds = {
+    'basic': 'subbasic_30videos_27', // 30 videos/month - $27
+    'starter': 'substarter_60videos_47', // 60 videos/month - $47
+    'pro': 'subpro_150videos_97', // 150 videos/month - $97
+  };
+
+  // NEW PRODUCT IDS - Credit Topups (must match Play Console and App Store)
+  static const Map<String, String> topupProductIds = {
+    'credits_10': 'topup_10credits_10', // 10 credits - $10
+    'credits_20': 'topup_20credits_18', // 20 credits - $18
+    'credits_30': 'topup_30credits_25', // 30 credits - $25
+  };
+
+  // Combined product IDs for easy lookup
+  static Map<String, String> get productIds => {
+    ...subscriptionProductIds,
+    ...topupProductIds,
   };
 
   // Initialize in-app purchase
@@ -446,10 +458,23 @@ class PaymentService {
       // Create purchase param
       final purchaseParam = PurchaseParam(productDetails: product);
 
-      // Start purchase
-      final success = await _inAppPurchase.buyNonConsumable(
-        purchaseParam: purchaseParam,
-      );
+      // Determine purchase type based on plan
+      bool success;
+      if (topupProductIds.containsKey(planId)) {
+        // Credits are CONSUMABLE - can be purchased multiple times
+        print('🔄 Purchasing CONSUMABLE product (credits): $planId');
+        success = await _inAppPurchase.buyConsumable(
+          purchaseParam: purchaseParam,
+        );
+      } else {
+        // Subscriptions and Faceless are NON-CONSUMABLE
+        print(
+          '🔄 Purchasing NON-CONSUMABLE product (subscription/faceless): $planId',
+        );
+        success = await _inAppPurchase.buyNonConsumable(
+          purchaseParam: purchaseParam,
+        );
+      }
 
       if (success) {
         return true;
@@ -585,12 +610,31 @@ class PaymentService {
   ) async {
     try {
       final planDetails = CreditSystemService.getPlanDetails(planId);
-      if (planDetails == null) {
-        print('Plan details not found for planId: $planId');
-        return false;
-      }
 
-      final credits = planDetails['credits'] as int;
+      // Default credits for test purchases or unknown plans
+      int credits = 30; // Default fallback
+
+      if (planDetails == null) {
+        print('⚠️ Plan details not found for planId: $planId');
+        print('🧪 Using fallback: 30 credits for test/unknown product');
+
+        // Try to extract credits from product ID directly
+        final extractedCredits = _getCreditsFromProductId(purchase.productID);
+        if (extractedCredits > 0) {
+          credits = extractedCredits;
+          print(
+            '✅ Extracted $credits credits from product ID: ${purchase.productID}',
+          );
+        }
+      } else {
+        // Use credits from plan details
+        if (planDetails.containsKey('videos')) {
+          credits = planDetails['videos'] as int;
+        } else if (planDetails.containsKey('credits')) {
+          credits = planDetails['credits'] as int;
+        }
+        print('✅ Found plan details - Credits: $credits');
+      }
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         print('User not authenticated');
@@ -909,33 +953,44 @@ class PaymentService {
 
   // Helper method to get plan ID from product ID
   static String _getPlanIdFromProductId(String productId) {
-    switch (productId) {
-      case 'basic_credits_500':
-        return 'basic';
-      case 'starter_credits_1300':
-        return 'starter';
-      case 'pro_credits_4000':
-        return 'pro';
-      case 'business_credits_9000':
-        return 'business';
-      default:
-        return 'basic';
+    // New format: subbasic_30videos_27, topup_10credits_10, etc.
+    if (productId.startsWith('sub_')) {
+      // Extract plan name: subbasic_30videos_27 -> basic
+      final parts = productId.split('_');
+      if (parts.length >= 2) return parts[1]; // Returns: basic, starter, pro
+    } else if (productId.startsWith('topup_')) {
+      // topup_10credits_10 -> credits_10
+      final match = RegExp(r'topup_(\d+)credits').firstMatch(productId);
+      if (match != null) {
+        final credits = match.group(1);
+        return 'credits_$credits'; // Returns: credits_10, credits_20, credits_30
+      }
     }
+
+    // Fallback to 'basic' for unknown formats
+    print('⚠️ Unknown product ID format: $productId, defaulting to basic');
+    return 'basic';
   }
 
   // Helper method to get credits from product ID
   static int _getCreditsFromProductId(String productId) {
-    switch (productId) {
-      case 'basic_credits_500':
-        return 500;
-      case 'starter_credits_1300':
-        return 1300;
-      case 'pro_credits_4000':
-        return 4000;
-      case 'business_credits_9000':
-        return 9000;
-      default:
-        return 0;
+    // New format: subbasic_30videos_27, topup_10credits_10, etc.
+    if (productId.startsWith('sub_')) {
+      // Extract video count: subbasic_30videos_27 -> 30
+      final match = RegExp(r'_(\d+)videos_').firstMatch(productId);
+      if (match != null) {
+        return int.parse(match.group(1) ?? '0');
+      }
+    } else if (productId.startsWith('topup_')) {
+      // Extract credits: topup_10credits_10 -> 10
+      final match = RegExp(r'topup_(\d+)credits').firstMatch(productId);
+      if (match != null) {
+        return int.parse(match.group(1) ?? '0');
+      }
     }
+
+    // Fallback
+    print('⚠️ Unknown product ID format: $productId, defaulting to 0');
+    return 0;
   }
 }

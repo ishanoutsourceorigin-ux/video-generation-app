@@ -6,43 +6,124 @@ import 'package:video_gen_app/Config/api_config.dart';
 class CreditSystemService {
   static String get baseUrl => ApiConfig.baseUrl;
 
-  // Credit consumption rates
-  static const int textToVideoCredits = 320; // 320 credits per text-to-video
-  static const int avatarVideoCreditsPerMinute = 40; // 40 credits per minute
+  // NEW CREDIT SYSTEM: 1 credit = 1 minute of avatar video
+  static const int textToVideoCredits = 320; // COMING SOON - Not currently used
+  static const int avatarVideoCreditsPerMinute =
+      1; // 1 credit per minute (rounded up)
 
-  // Plan configurations with internal cost structure (not shown to users)
-  static const Map<String, Map<String, dynamic>> planConfigs = {
+  // NEW SUBSCRIPTION PLANS (Monthly - only one active at a time)
+  static const Map<String, Map<String, dynamic>> subscriptionPlans = {
     'basic': {
-      'credits': 500,
-      'price': 9.99,
-      'textToVideos': 1,
-      'avatarVideos': 5,
-      'internalCost': 5.55, // Internal cost - not shown to users
-      'profitMargin': 80, // 80% profit margin - not shown to users
+      'name': 'Basic',
+      'videos': 30,
+      'price': 27.0,
+      'priceDisplay': '\$27',
+      'type': 'subscription',
+      'billingPeriod': 'month',
+      'description': '30 videos per month',
     },
     'starter': {
-      'credits': 1300,
-      'price': 24.99,
-      'textToVideos': 3,
-      'avatarVideos': 10,
-      'internalCost': 14.30,
-      'profitMargin': 75,
+      'name': 'Starter',
+      'videos': 60,
+      'price': 47.0,
+      'priceDisplay': '\$47',
+      'type': 'subscription',
+      'billingPeriod': 'month',
+      'description': '60 videos per month',
+      'popular': true,
     },
     'pro': {
-      'credits': 4000,
-      'price': 69.99,
-      'textToVideos': 10,
-      'avatarVideos': 25,
-      'internalCost': 43.75,
-      'profitMargin': 60,
+      'name': 'Pro',
+      'videos': 150,
+      'price': 97.0,
+      'priceDisplay': '\$97',
+      'type': 'subscription',
+      'billingPeriod': 'month',
+      'description': '150 videos per month',
     },
-    'business': {
-      'credits': 9000,
-      'price': 149.99,
-      'textToVideos': 25,
-      'avatarVideos': 50,
-      'internalCost': 103.50,
-      'profitMargin': 45,
+  };
+
+  // NEW IN-APP CREDIT TOP-UPS (Can be purchased anytime, even with active subscription)
+  static const Map<String, Map<String, dynamic>> creditTopups = {
+    'credits_10': {
+      'name': '10 Credits',
+      'credits': 10,
+      'price': 10.0,
+      'priceDisplay': '\$10',
+      'type': 'topup',
+      'description': '10 additional credits',
+    },
+    'credits_20': {
+      'name': '20 Credits',
+      'credits': 20,
+      'price': 18.0,
+      'priceDisplay': '\$18',
+      'type': 'topup',
+      'description': '20 additional credits',
+      'savings': '\$2 off',
+    },
+    'credits_30': {
+      'name': '30 Credits',
+      'credits': 30,
+      'price': 25.0,
+      'priceDisplay': '\$25',
+      'type': 'topup',
+      'description': '30 additional credits',
+      'savings': '\$5 off',
+      'popular': true,
+    },
+  };
+
+  // FACELESS LTD STRIPE WEBHOOK PLANS (Website payments)
+  static const Map<String, Map<String, dynamic>> facelessLtdPlans = {
+    'faceless_basic': {
+      'name': 'Faceless Basic',
+      'videos': 30,
+      'price': 60.0,
+      'stripeAmount': 6000, // in cents
+      'type': 'faceless_ltd',
+      'billingPeriod': 'month',
+      'description': '30 videos per month via Faceless LTD',
+    },
+    'faceless_starter': {
+      'name': 'Faceless Starter',
+      'videos': 60,
+      'price': 97.0,
+      'stripeAmount': 9700, // in cents
+      'type': 'faceless_ltd',
+      'billingPeriod': 'month',
+      'description': '60 videos per month via Faceless LTD',
+    },
+    'faceless_pro': {
+      'name': 'Faceless Pro',
+      'videos': 150,
+      'price': 197.0,
+      'stripeAmount': 19700, // in cents
+      'type': 'faceless_ltd',
+      'billingPeriod': 'month',
+      'description': '150 videos per month via Faceless LTD',
+    },
+  };
+
+  // LEGACY - Keeping for backward compatibility (will be removed later)
+  static const Map<String, Map<String, dynamic>> planConfigs = {
+    'basic': {
+      'credits': 30,
+      'price': 27.0,
+      'textToVideos': 0, // Coming soon
+      'avatarVideos': 30,
+    },
+    'starter': {
+      'credits': 60,
+      'price': 47.0,
+      'textToVideos': 0, // Coming soon
+      'avatarVideos': 60,
+    },
+    'pro': {
+      'credits': 150,
+      'price': 97.0,
+      'textToVideos': 0, // Coming soon
+      'avatarVideos': 150,
     },
   };
 
@@ -141,9 +222,7 @@ class CreditSystemService {
   }
 
   /// Confirm credit usage after successful video generation
-  static Future<bool> confirmCredits({
-    required String projectId,
-  }) async {
+  static Future<bool> confirmCredits({required String projectId}) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('User not authenticated');
@@ -155,9 +234,7 @@ class CreditSystemService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'projectId': projectId,
-        }),
+        body: jsonEncode({'projectId': projectId}),
       );
 
       if (response.statusCode == 200) {
@@ -174,9 +251,7 @@ class CreditSystemService {
   }
 
   /// Refund reserved credits if video generation fails
-  static Future<bool> refundCredits({
-    required String projectId,
-  }) async {
+  static Future<bool> refundCredits({required String projectId}) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('User not authenticated');
@@ -188,9 +263,7 @@ class CreditSystemService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'projectId': projectId,
-        }),
+        body: jsonEncode({'projectId': projectId}),
       );
 
       if (response.statusCode == 200) {
@@ -316,37 +389,109 @@ class CreditSystemService {
     }
   }
 
-  /// Calculate credits needed for a video
+  /// Calculate credits needed for a video (NEW SYSTEM)
   static int calculateRequiredCredits({
     required String videoType,
     int? durationMinutes,
+    int? durationSeconds,
   }) {
     if (videoType == 'text-to-video') {
+      // Coming soon - not currently active
       return textToVideoCredits;
     } else if (videoType == 'avatar-video') {
-      return avatarVideoCreditsPerMinute * (durationMinutes ?? 1);
+      // NEW SYSTEM: 1 credit = 1 minute (rounded up)
+      // If duration is 1 minute 1 second, it costs 2 credits
+      final minutes = durationMinutes ?? 0;
+      final seconds = durationSeconds ?? 0;
+
+      if (seconds > 0) {
+        // Any seconds over the minute rounds up to next credit
+        return minutes + 1;
+      }
+      return minutes > 0 ? minutes : 1; // Minimum 1 credit
     }
     return 0;
   }
 
-  /// Get plan details by ID
+  /// Get subscription plan details by ID
+  static Map<String, dynamic>? getSubscriptionPlan(String planId) {
+    return subscriptionPlans[planId];
+  }
+
+  /// Get credit topup details by ID
+  static Map<String, dynamic>? getCreditTopup(String topupId) {
+    return creditTopups[topupId];
+  }
+
+  /// Get Faceless LTD plan details by ID
+  static Map<String, dynamic>? getFacelessLtdPlan(String planId) {
+    return facelessLtdPlans[planId];
+  }
+
+  /// Get plan details by ID (Legacy support)
   static Map<String, dynamic>? getPlanDetails(String planId) {
+    // First check subscriptions
+    if (subscriptionPlans.containsKey(planId)) {
+      return subscriptionPlans[planId];
+    }
+    // Then check topups
+    if (creditTopups.containsKey(planId)) {
+      return creditTopups[planId];
+    }
+    // Finally check faceless ltd
+    if (facelessLtdPlans.containsKey(planId)) {
+      return facelessLtdPlans[planId];
+    }
+    // Legacy fallback
     return planConfigs[planId];
   }
 
-  /// Get all available plans (without internal cost/profit data)
-  static List<Map<String, dynamic>> getAvailablePlans() {
-    return planConfigs.entries.map((entry) {
-      final config = entry.value;
+  /// Get all available subscription plans
+  static List<Map<String, dynamic>> getAvailableSubscriptions() {
+    return subscriptionPlans.entries.map((entry) {
       return {
         'id': entry.key,
-        'name': entry.key.toUpperCase(),
-        'credits': config['credits'],
-        'price': config['price'],
-        'textToVideos': config['textToVideos'],
-        'avatarVideos': config['avatarVideos'],
-        // Note: Internal cost and profit margin are NOT included in public data
+        'name': entry.value['name'],
+        'videos': entry.value['videos'],
+        'price': entry.value['price'],
+        'priceDisplay': entry.value['priceDisplay'],
+        'description': entry.value['description'],
+        'billingPeriod': entry.value['billingPeriod'],
+        'popular': entry.value['popular'] ?? false,
+        'type': 'subscription',
       };
     }).toList();
+  }
+
+  /// Get all available credit topups
+  static List<Map<String, dynamic>> getAvailableCreditTopups() {
+    return creditTopups.entries.map((entry) {
+      return {
+        'id': entry.key,
+        'name': entry.value['name'],
+        'credits': entry.value['credits'],
+        'price': entry.value['price'],
+        'priceDisplay': entry.value['priceDisplay'],
+        'description': entry.value['description'],
+        'savings': entry.value['savings'],
+        'popular': entry.value['popular'] ?? false,
+        'type': 'topup',
+      };
+    }).toList();
+  }
+
+  /// Get all available plans (Legacy support - now returns subscriptions)
+  static List<Map<String, dynamic>> getAvailablePlans() {
+    return getAvailableSubscriptions();
+  }
+
+  /// Determine Faceless LTD plan based on Stripe payment amount
+  static Map<String, dynamic>? getFacelessPlanByAmount(int amountInCents) {
+    for (var entry in facelessLtdPlans.entries) {
+      if (entry.value['stripeAmount'] == amountInCents) {
+        return {'id': entry.key, ...entry.value};
+      }
+    }
+    return null;
   }
 }

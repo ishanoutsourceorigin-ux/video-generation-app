@@ -172,9 +172,9 @@ class _CreditPurchaseScreenState extends State<CreditPurchaseScreen> {
 
                   const SizedBox(height: 32),
 
-                  // Credit packages
+                  // Monthly Subscriptions Section
                   const Text(
-                    'Choose Your Plan',
+                    'Monthly Subscriptions',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -183,23 +183,92 @@ class _CreditPurchaseScreenState extends State<CreditPurchaseScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Select a credit package that fits your needs',
+                    'Choose a monthly plan (only one subscription active at a time)',
                     style: TextStyle(color: Colors.grey, fontSize: 16),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                  // Credit packages grid
-                  ...CreditSystemService.getAvailablePlans().map((plan) {
-                    final isPopular = plan['id'] == 'starter';
+                  // Info box about new credit system
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.blueColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.blueColor.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: AppColors.blueColor),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            '1 credit = 1 minute of video\n(1 min 1 sec = 2 credits)',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Subscription packages
+                  ...CreditSystemService.getAvailableSubscriptions().map((
+                    plan,
+                  ) {
+                    final isPopular = plan['popular'] ?? false;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 16),
                       child: _buildCreditPackage(
                         plan['name'],
-                        '\$${plan['price']}',
-                        '${plan['credits']} credits • ${plan['textToVideos']} Text Videos + ${plan['avatarVideos']} Avatar Videos',
+                        plan['priceDisplay'] + '/month',
+                        '${plan['videos']} videos per month\n(~${plan['videos']} minutes of content)\n${isPopular ? "Most Popular!" : plan['description']}',
                         isPopular,
                         plan['id'],
-                        plan['credits'],
+                        plan['videos'],
+                        isSubscription: true,
+                      ),
+                    );
+                  }).toList(),
+
+                  const SizedBox(height: 32),
+
+                  // Credit Top-ups Section
+                  const Text(
+                    'Credit Top-ups',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Need more credits? Top up anytime, even with an active subscription',
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Credit topup packages
+                  ...CreditSystemService.getAvailableCreditTopups().map((
+                    topup,
+                  ) {
+                    final isPopular = topup['popular'] ?? false;
+                    final savings = topup['savings'];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      child: _buildCreditPackage(
+                        topup['name'],
+                        topup['priceDisplay'],
+                        '${topup['credits']} additional credits\n(~${topup['credits']} minutes of videos)\n${savings != null ? savings : topup['description']}',
+                        isPopular,
+                        topup['id'],
+                        topup['credits'],
+                        isSubscription: false,
                       ),
                     );
                   }).toList(),
@@ -226,15 +295,15 @@ class _CreditPurchaseScreenState extends State<CreditPurchaseScreen> {
                     child: Column(
                       children: [
                         _buildCreditInfo(
-                          'Text-to-Video Generation',
-                          '320 credits per video (~8 seconds)',
-                          Icons.video_call,
+                          'Avatar-Based Videos',
+                          '1 credit = 1 minute\n1 min 1 sec = 2 credits',
+                          Icons.person,
                         ),
                         const SizedBox(height: 16),
                         _buildCreditInfo(
-                          'Avatar-Based Videos',
-                          '40 credits per minute',
-                          Icons.person,
+                          'Text-to-Video Generation',
+                          'Coming Soon! Stay tuned for updates',
+                          Icons.video_call,
                         ),
                       ],
                     ),
@@ -251,8 +320,9 @@ class _CreditPurchaseScreenState extends State<CreditPurchaseScreen> {
     String description,
     bool isPopular,
     String planId,
-    int credits,
-  ) {
+    int credits, {
+    bool isSubscription = false,
+  }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

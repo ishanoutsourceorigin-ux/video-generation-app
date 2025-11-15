@@ -1114,9 +1114,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Buy More Credits
+                        // Monthly Subscriptions
                         const Text(
-                          "Buy More Credits",
+                          "Monthly Subscriptions",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 22,
@@ -1124,61 +1124,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                         const Text(
-                          "Need more credits to create videos? Choose from our credit packages:",
+                          "Choose a monthly plan (1 credit = 1 minute video)",
                           style: TextStyle(color: Colors.grey, fontSize: 16),
                         ),
                         const SizedBox(height: 16),
 
-                        // Credit Packages - 2x2 Grid Layout
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isTablet =
-                                MediaQuery.of(context).size.width > 600;
+                        // Subscription Plans - Column Layout
+                        ...[
+                          _buildCreditPackage(
+                            "Basic",
+                            "\$27/month",
+                            "30 videos per month\n(~30 minutes of content)\nPerfect for getting started",
+                            false,
+                            "basic",
+                            30,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildCreditPackage(
+                            "Starter",
+                            "\$47/month",
+                            "60 videos per month\n(~60 minutes of content)\nBest for regular creators",
+                            true,
+                            "starter",
+                            60,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildCreditPackage(
+                            "Pro",
+                            "\$97/month",
+                            "150 videos per month\n(~150 minutes of content)\nIdeal for professionals",
+                            false,
+                            "pro",
+                            150,
+                          ),
+                        ],
 
-                            return GridView.count(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: isTablet ? 0.9 : 0.8,
-                              children: [
-                                _buildCreditPackage(
-                                  "Basic",
-                                  "\$9.99",
-                                  "500 credits\n1 Text-to-Video\n5 Avatar Videos",
-                                  false,
-                                  "basic",
-                                  500,
-                                ),
-                                _buildCreditPackage(
-                                  "Starter",
-                                  "\$24.99",
-                                  "1,300 credits\n3 Text-to-Videos\n10 Avatar Videos",
-                                  true,
-                                  "starter",
-                                  1300,
-                                ),
-                                _buildCreditPackage(
-                                  "Pro",
-                                  "\$69.99",
-                                  "4,000 credits\n10 Text-to-Videos\n25 Avatar Videos",
-                                  false,
-                                  "pro",
-                                  4000,
-                                ),
-                                _buildCreditPackage(
-                                  "Business",
-                                  "\$149.99",
-                                  "9,000 credits\n25 Text-to-Videos\n50 Avatar Videos",
-                                  false,
-                                  "business",
-                                  9000,
-                                ),
-                              ],
-                            );
-                          },
+                        const SizedBox(height: 32),
+
+                        // Add-on Credits
+                        const Text(
+                          "Add Extra Credits",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                        const Text(
+                          "Need more? Top up anytime, even with an active subscription:",
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Credit Top-ups
+                        ...[
+                          _buildCreditPackage(
+                            "10 Credits",
+                            "\$10",
+                            "10 additional credits\n(~10 minutes of videos)\nQuick top-up",
+                            false,
+                            "credits_10",
+                            10,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildCreditPackage(
+                            "20 Credits",
+                            "\$18",
+                            "20 additional credits\n(~20 minutes of videos)\nSave \$2!",
+                            false,
+                            "credits_20",
+                            20,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildCreditPackage(
+                            "30 Credits",
+                            "\$25",
+                            "30 additional credits\n(~30 minutes of videos)\nSave \$5! Most Popular",
+                            true,
+                            "credits_30",
+                            30,
+                          ),
+                        ],
                         const SizedBox(height: 24),
 
                         // Payment History
@@ -1266,78 +1292,82 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String planId,
     int credits,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2D3A),
-        borderRadius: BorderRadius.circular(16),
-        border: isPopular
-            ? Border.all(color: AppColors.blueColor, width: 2)
-            : Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: isPopular
-                ? AppColors.blueColor.withOpacity(0.2)
-                : Colors.black.withOpacity(0.1),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with title and popular badge
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (isPopular)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.blueColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    "Popular",
-                    style: TextStyle(
+    return IntrinsicHeight(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A2D3A),
+          borderRadius: BorderRadius.circular(16),
+          border: isPopular
+              ? Border.all(color: AppColors.blueColor, width: 2)
+              : Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: isPopular
+                  ? AppColors.blueColor.withOpacity(0.2)
+                  : Colors.black.withOpacity(0.1),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with title and popular badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-
-          // Price
-          Text(
-            price,
-            style: TextStyle(
-              color: AppColors.blueColor,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+                if (isPopular)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.blueColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      "Popular",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ),
 
-          const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
-          // Description
-          Expanded(
-            child: Text(
+            // Price
+            Text(
+              price,
+              style: TextStyle(
+                color: AppColors.blueColor,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Description
+            Text(
               description,
               style: const TextStyle(
                 color: Colors.grey,
@@ -1345,56 +1375,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 height: 1.3,
               ),
               maxLines: 4,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
 
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // Credits badge
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.blueColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.blueColor.withOpacity(0.3)),
-            ),
-            child: Text(
-              "$credits Credits",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.blueColor,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+            // Credits badge
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.blueColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.blueColor.withOpacity(0.3)),
               ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Buy button
-          SizedBox(
-            width: double.infinity,
-            height: 40,
-            child: ElevatedButton(
-              onPressed: () => _purchasePlan(planId, price, credits),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isPopular
-                    ? AppColors.blueColor
-                    : AppColors.purpleColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              child: Text(
+                "$credits Credits",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.blueColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
                 ),
-                elevation: 2,
-              ),
-              child: const Text(
-                "Buy Now",
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 12),
+
+            // Buy button
+            SizedBox(
+              width: double.infinity,
+              height: 40,
+              child: ElevatedButton(
+                onPressed: () => _purchasePlan(planId, price, credits),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isPopular
+                      ? AppColors.blueColor
+                      : AppColors.purpleColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                child: const Text(
+                  "Buy Now",
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
