@@ -79,13 +79,23 @@ const transactionSchema = new mongoose.Schema({
   paypalOrderId: String,
   paypalPaymentId: String,
   
-  // In-App Purchase specific fields
+  // In-App Purchase specific fields (Cross-platform)
   transactionId: {
     type: String,
     index: true,
   },
-  purchaseToken: String,
+  purchaseToken: String, // Android: Purchase token, iOS: Receipt data
   productId: String,
+  
+  // Platform-specific fields
+  platform: {
+    type: String,
+    enum: ['android', 'ios', 'web'],
+    default: 'android',
+  },
+  originalTransactionId: String, // iOS: Original transaction ID
+  appStoreReceiptUrl: String,    // iOS: Receipt URL
+  bundleId: String,              // iOS: Bundle identifier
   
   // Invoice Details
   invoiceNumber: {

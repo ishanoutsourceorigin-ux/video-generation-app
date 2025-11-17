@@ -469,27 +469,35 @@ const server = app.listen(PORT, () => {
 });
 
 // Graceful shutdown handling
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('\n🛑 Received SIGINT, shutting down gracefully...');
   autoCompletion.stop();
-  server.close(() => {
+  server.close(async () => {
     console.log('✅ Server closed');
-    mongoose.connection.close(false, () => {
+    try {
+      await mongoose.connection.close();
       console.log('✅ MongoDB connection closed');
       process.exit(0);
-    });
+    } catch (error) {
+      console.error('❌ Error closing MongoDB connection:', error);
+      process.exit(1);
+    }
   });
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('🛑 Received SIGTERM, shutting down gracefully...');
   autoCompletion.stop();
-  server.close(() => {
+  server.close(async () => {
     console.log('✅ Server closed');
-    mongoose.connection.close(false, () => {
+    try {
+      await mongoose.connection.close();
       console.log('✅ MongoDB connection closed');
       process.exit(0);
-    });
+    } catch (error) {
+      console.error('❌ Error closing MongoDB connection:', error);
+      process.exit(1);
+    }
   });
 });
 

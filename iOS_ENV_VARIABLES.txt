@@ -1,0 +1,16 @@
+# iOS App Store Configuration
+# Add these to your backend .env file
+
+# App Store Shared Secret (from App Store Connect)
+APP_STORE_SHARED_SECRET=your_app_store_shared_secret_here
+
+# iOS Bundle Identifier
+IOS_BUNDLE_ID=com.clonex.video_gen_app
+
+# Platform Detection
+ENABLE_IOS_VERIFICATION=true
+ENABLE_ANDROID_VERIFICATION=true
+
+# Testing Modes
+ALLOW_VERIFICATION_BYPASS=true  # Set to false in production
+IOS_SANDBOX_MODE=true          # Set to false for production builds

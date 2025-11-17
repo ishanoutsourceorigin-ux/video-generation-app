@@ -27,6 +27,9 @@ class PaymentService {
     'credits_20': 'topup_20credits_18', // 20 credits - $18
     'credits_30': 'topup_30credits_25', // 30 credits - $25
   };
+  
+  // NOTE: For App Store, use same product IDs as Google Play
+  // This ensures consistent backend processing for both platforms
 
   // Combined product IDs for easy lookup
   static Map<String, String> get productIds => {
