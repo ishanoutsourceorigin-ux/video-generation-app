@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     mq = MediaQuery.of(context).size;
     return MaterialApp(
-      title: 'CloneX',
+      title: 'CloneX - AI Avatar Video Generator',
       debugShowCheckedModeBanner: false,
       home: const SplashScreen(),
     );
