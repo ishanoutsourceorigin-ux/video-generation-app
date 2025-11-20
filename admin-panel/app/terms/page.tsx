@@ -41,7 +41,7 @@ export default function TermsOfUsePage() {
               </h2>
               <p className="text-gray-300 leading-relaxed">
                 Welcome to CloneX! By downloading, installing, or using our mobile application and services, 
-                you agree to be bound by these Terms of Use ("Terms"). If you do not agree to these Terms, 
+                you agree to be bound by these Terms of Use (&quot;Terms&quot;). If you do not agree to these Terms, 
                 please do not use our services.
               </p>
               <p className="text-gray-300 leading-relaxed mt-4">
@@ -171,7 +171,7 @@ export default function TermsOfUsePage() {
                 Refund Policy
               </h3>
               <p className="text-gray-300">
-                All purchases are subject to Apple's refund policies. For subscription cancellations 
+                All purchases are subject to Apple&apos;s refund policies. For subscription cancellations 
                 and refunds, please contact Apple Support directly through your device settings or 
                 the App Store.
               </p>
