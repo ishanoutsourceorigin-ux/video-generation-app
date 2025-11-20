@@ -180,16 +180,26 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
-          {/* Privacy Policy Link */}
-          <div className="mt-6 text-center">
-            <Link
-              href="/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-gray-400 hover:text-white transition-colors underline"
-            >
-              Privacy Policy
-            </Link>
+          {/* Privacy Policy and Terms Links */}
+          <div className="mt-6 text-center space-y-2">
+            <div className="flex justify-center space-x-6">
+              <Link
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-400 hover:text-white transition-colors underline"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-400 hover:text-white transition-colors underline"
+              >
+                Terms of Use
+              </Link>
+            </div>
           </div>
 
           {/* Admin Info
