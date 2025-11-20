@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react/no-unescaped-entities */
+
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -241,7 +243,7 @@ export default function TermsOfUsePage() {
                 Service Availability
               </h3>
               <ul className="text-gray-300 space-y-2 ml-6">
-                <li>• CloneX is provided "as is" without warranties of any kind</li>
+                <li>• CloneX is provided &quot;as is&quot; without warranties of any kind</li>
                 <li>• We do not guarantee uninterrupted or error-free service</li>
                 <li>• Service availability may vary due to maintenance or technical issues</li>
                 <li>• AI-generated content quality may vary and is not guaranteed</li>
