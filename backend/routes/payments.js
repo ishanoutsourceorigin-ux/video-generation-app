@@ -399,8 +399,29 @@ async function verifyAppStoreReceipt(receiptData, productId, transactionId) {
     const productionURL = 'https://buy.itunes.apple.com/verifyReceipt';
     const sandboxURL = 'https://sandbox.itunes.apple.com/verifyReceipt';
     
-    // Try production first, then sandbox
-    const verificationURLs = isProduction ? [productionURL, sandboxURL] : [sandboxURL, productionURL];
+    // ALWAYS try production first, then sandbox (Apple requirement)
+    const verificationURLs = [productionURL, sandboxURL];
+    
+    const sharedSecret = process.env.APP_STORE_SHARED_SECRET;
+    if (!sharedSecret || sharedSecret === 'your-app-store-shared-secret-here') {
+      console.log('⚠️ APP_STORE_SHARED_SECRET not configured - using development mode');
+      // In development, allow verification without shared secret
+      if (process.env.NODE_ENV !== 'production') {
+        return {
+          valid: true,
+          reason: 'development_testing_mode',
+          details: 'Purchase allowed for testing purposes',
+          purchaseTime: Date.now(),
+          transactionId: transactionId || `test-${Date.now()}`,
+          environment: 'development'
+        };
+      }
+      return {
+        valid: false,
+        reason: 'shared_secret_not_configured',
+        details: 'App Store Shared Secret is missing or not configured'
+      };
+    }
     
     for (const url of verificationURLs) {
       try {
@@ -413,7 +434,7 @@ async function verifyAppStoreReceipt(receiptData, productId, transactionId) {
           },
           body: JSON.stringify({
             'receipt-data': receiptData,
-            'password': process.env.APP_STORE_SHARED_SECRET || 'your-shared-secret-here',
+            'password': sharedSecret,
             'exclude-old-transactions': true
           })
         });
@@ -452,11 +473,18 @@ async function verifyAppStoreReceipt(receiptData, productId, transactionId) {
             };
           }
         } else if (result.status === 21007 && url === productionURL) {
-          // Sandbox receipt in production - try sandbox URL
-          console.log('🔄 Production rejected (21007) - trying sandbox...');
+          // Sandbox receipt in production - MUST try sandbox URL (Apple requirement)
+          console.log('🔄 Production rejected (21007) - trying sandbox as required by Apple...');
           continue;
         } else {
           console.log(`❌ Receipt verification failed with status: ${result.status}`);
+          
+          // If this is production URL and we get a different error, still try sandbox
+          if (url === productionURL) {
+            console.log('🔄 Production failed - trying sandbox as fallback...');
+            continue;
+          }
+          
           return {
             valid: false,
             reason: `app_store_error_${result.status}`,
@@ -464,15 +492,19 @@ async function verifyAppStoreReceipt(receiptData, productId, transactionId) {
           };
         }
       } catch (urlError) {
-        console.error(`❌ Error with ${url}:`, urlError.message);
-        continue;
+        console.error(`❌ Network error with ${url}:`, urlError.message);
+        // If production fails due to network issues, still try sandbox
+        if (url === productionURL) {
+          console.log('🔄 Production network error - trying sandbox...');
+          continue;
+        }
       }
     }
 
     return {
       valid: false,
       reason: 'app_store_verification_failed',
-      details: 'All verification attempts failed'
+      details: 'All verification attempts failed - both production and sandbox'
     };
 
   } catch (error) {

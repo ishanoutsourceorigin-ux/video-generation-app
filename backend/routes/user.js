@@ -758,4 +758,87 @@ router.get('/api-status', authMiddleware, async (req, res) => {
   }
 });
 
+// DELETE /api/user/account - User-initiated account deletion (Apple Guideline 5.1.1v compliance)
+router.delete('/account', authMiddleware, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const Project = require('../models/Project');
+    const Avatar = require('../models/Avatar');
+    const Transaction = require('../models/Transaction');
+    
+    const userId = req.user.uid;
+    console.log(`🗑️ User-initiated account deletion request: ${userId}`);
+
+    // Debug: Check all possible ways to find the user
+    console.log(`🔍 Searching for user by UID: ${userId}`);
+    let user = await User.findOne({ uid: userId });
+    
+    if (!user) {
+      console.log(`⚠️ User not found by UID, trying by email: ${req.user.email}`);
+      user = await User.findOne({ email: req.user.email });
+    }
+    
+    if (!user) {
+      console.log(`⚠️ User not found by email either, checking all users with this email...`);
+      const allUsersWithEmail = await User.find({ email: req.user.email });
+      console.log(`📋 Found ${allUsersWithEmail.length} users with email ${req.user.email}:`, 
+        allUsersWithEmail.map(u => ({ uid: u.uid, email: u.email, _id: u._id })));
+      
+      if (allUsersWithEmail.length > 0) {
+        user = allUsersWithEmail[0]; // Use the first one found
+        console.log(`✅ Using first user found: ${user.uid}`);
+      }
+    }
+    
+    if (!user) {
+      console.log(`❌ No user found with UID: ${userId} or email: ${req.user.email}`);
+      return res.status(404).json({
+        success: false,
+        message: 'User account not found'
+      });
+    }
+
+    console.log(`📋 Deleting account for: ${user.email || 'Unknown email'} (UID: ${user.uid})`);
+
+    // Delete all user's projects (use the actual UID from the found user)
+    const deletedProjects = await Project.deleteMany({ uid: user.uid });
+    console.log(`📁 Deleted ${deletedProjects.deletedCount} projects`);
+
+    // Delete all user's avatars  
+    const deletedAvatars = await Avatar.deleteMany({ uid: user.uid });
+    console.log(`🧑‍🎨 Deleted ${deletedAvatars.deletedCount} avatars`);
+
+    // Delete all user's transactions (might use userId field differently)
+    const deletedTransactions1 = await Transaction.deleteMany({ userId: user.uid });
+    const deletedTransactions2 = await Transaction.deleteMany({ userId: user._id.toString() });
+    const totalDeletedTransactions = deletedTransactions1.deletedCount + deletedTransactions2.deletedCount;
+    console.log(`💳 Deleted ${totalDeletedTransactions} transactions`);
+
+    // Delete the user account
+    const deletedUser = await User.deleteOne({ uid: user.uid });
+    console.log(`👤 Deleted user account: ${deletedUser.deletedCount > 0 ? 'Success' : 'Failed'}`);
+
+    console.log(`✅ Account deletion completed for user: ${user.email || userId}`);
+
+    res.json({
+      success: true,
+      message: 'Account and all associated data have been permanently deleted',
+      deletedData: {
+        projects: deletedProjects.deletedCount,
+        avatars: deletedAvatars.deletedCount,
+        transactions: totalDeletedTransactions,
+        userAccount: deletedUser.deletedCount
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Account deletion error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete account. Please contact support.',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 module.exports = router;
